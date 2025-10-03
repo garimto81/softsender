@@ -1,0 +1,23 @@
+<!-- Table Selection View Template -->
+<template id="table-selection-template">
+  <div class="table-selection">
+    <div class="table-selection__header">
+      <div class="table-selection__title">Select Table</div>
+      <button class="table-selection__settings icon-btn">⚙️</button>
+    </div>
+    <div class="table-selection__body">
+      <div class="recent-tables">
+        <div class="recent-tables__title">Recent</div>
+        <div class="recent-tables__list" data-slot="recent-tables">
+          <!-- Dynamic content -->
+        </div>
+      </div>
+      <div class="all-tables">
+        <div class="all-tables__title">All Tables</div>
+        <div data-slot="all-tables">
+          <!-- Dynamic content -->
+        </div>
+      </div>
+    </div>
+  </div>
+</template>

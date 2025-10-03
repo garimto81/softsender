@@ -1,0 +1,38 @@
+<!-- Work Screen View Template -->
+<template id="work-screen-template">
+  <div class="work-screen">
+    <div class="work-screen__header">
+      <div class="work-screen__table-info">
+        <button class="work-screen__back icon-btn" data-action="back">←</button>
+        <div>
+          <div class="work-screen__table-number" data-slot="table-number">
+            <!-- Dynamic content -->
+          </div>
+          <div class="work-screen__table-name" data-slot="table-name">
+            <!-- Dynamic content -->
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="work-screen__panels">
+      <div class="left-panel">
+        <div class="player-grid" data-slot="player-grid">
+          <!-- Dynamic content -->
+        </div>
+      </div>
+      <div class="right-panel">
+        <div class="input-cards" data-slot="input-cards">
+          <!-- Dynamic content -->
+        </div>
+      </div>
+    </div>
+    <div class="work-screen__footer">
+      <button class="footer-btn footer-btn--secondary" data-action="clear">
+        Clear All
+      </button>
+      <button class="footer-btn footer-btn--primary" data-action="send">
+        <span data-slot="send-count">Send</span>
+      </button>
+    </div>
+  </div>
+</template>

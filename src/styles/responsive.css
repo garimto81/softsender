@@ -1,0 +1,83 @@
+/* Responsive Breakpoints */
+
+/* Tablet Portrait (768px+) */
+@media (min-width: 768px) {
+  :root {
+    --header-height: 64px;
+    --footer-height: 72px;
+    --panel-left-width: 40%;
+    --panel-right-width: 60%;
+  }
+
+  .player-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-sm);
+  }
+
+  .table-list {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+}
+
+/* Tablet Landscape (1024px+) */
+@media (min-width: 1024px) {
+  :root {
+    --header-height: 72px;
+    --footer-height: 80px;
+  }
+
+  .recent-table-card {
+    width: 140px;
+    height: 160px;
+  }
+
+  .table-list {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+}
+
+/* Desktop (1280px+) */
+@media (min-width: 1280px) {
+  :root {
+    --panel-left-width: 35%;
+    --panel-right-width: 65%;
+  }
+
+  #app {
+    max-width: 1440px;
+    margin: 0 auto;
+  }
+}
+
+/* Landscape Orientation */
+@media (orientation: landscape) and (max-height: 600px) {
+  :root {
+    --header-height: 48px;
+    --footer-height: 56px;
+  }
+
+  .recent-table-card {
+    height: 120px;
+  }
+}
+
+/* Touch Device Optimization */
+@media (pointer: coarse) {
+  .player-cell,
+  .table-item,
+  .recent-table-card {
+    /* Ensure minimum touch target on touch devices */
+    min-width: var(--touch-target);
+    min-height: var(--touch-target);
+  }
+}
+
+/* High DPI Displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  /* Sharper borders on retina displays */
+  .player-cell,
+  .input-card,
+  .table-item {
+    border-width: 0.5px;
+  }
+}

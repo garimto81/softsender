@@ -1,0 +1,195 @@
+/* Work Screen - Two Panel Layout */
+.work-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.work-screen__header {
+  height: var(--header-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--spacing-md);
+  border-bottom: var(--border-width) solid var(--color-border);
+  background: var(--color-bg);
+}
+
+.work-screen__table-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.work-screen__back {
+  padding: var(--spacing-sm);
+  color: var(--color-primary);
+}
+
+.work-screen__table-number {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+}
+
+.work-screen__table-name {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.work-screen__panels {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* Left Panel - Player Grid */
+.left-panel {
+  width: var(--panel-left-width);
+  border-right: var(--border-width) solid var(--color-border);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.player-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm);
+}
+
+.player-cell {
+  aspect-ratio: 1;
+  background: var(--color-bg-secondary);
+  border: 2px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  position: relative;
+}
+
+.player-cell:active {
+  transform: scale(0.95);
+}
+
+.player-cell--selected {
+  border-color: var(--color-primary);
+  background: rgba(37, 99, 235, 0.1);
+}
+
+.player-cell__seat {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-bottom: var(--spacing-xs);
+}
+
+.player-cell__name {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  text-align: center;
+  padding: 0 var(--spacing-xs);
+}
+
+.player-cell__flag {
+  position: absolute;
+  top: var(--spacing-xs);
+  right: var(--spacing-xs);
+  font-size: var(--font-size-xs);
+}
+
+/* Right Panel - Input Cards */
+.right-panel {
+  width: var(--panel-right-width);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.input-cards {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: var(--spacing-md);
+}
+
+.input-card {
+  background: var(--color-bg-secondary);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.input-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-md);
+}
+
+.input-card__player {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.input-card__seat {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.input-card__name {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+}
+
+.input-card__remove {
+  color: var(--color-danger);
+  padding: var(--spacing-sm);
+}
+
+.input-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+/* Footer - Action Bar */
+.work-screen__footer {
+  height: var(--footer-height);
+  border-top: var(--border-width) solid var(--color-border);
+  padding: var(--spacing-md);
+  display: flex;
+  gap: var(--spacing-sm);
+  background: var(--color-bg);
+}
+
+.footer-btn {
+  flex: 1;
+  min-height: var(--touch-target);
+  border-radius: var(--border-radius-md);
+  font-weight: var(--font-weight-medium);
+  transition: all var(--transition-fast);
+}
+
+.footer-btn--primary {
+  background: var(--color-primary);
+  color: white;
+}
+
+.footer-btn--primary:active {
+  background: var(--color-primary-hover);
+}
+
+.footer-btn--secondary {
+  background: var(--color-bg-secondary);
+  border: var(--border-width) solid var(--color-border);
+}
+
+.footer-btn--secondary:active {
+  background: var(--color-border);
+}
