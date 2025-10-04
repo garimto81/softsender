@@ -1,0 +1,22 @@
+{
+  "name": "soft-content-sender",
+  "version": "10.1.0",
+  "description": "Poker broadcast subtitle content management system",
+  "main": "build.js",
+  "scripts": {
+    "dev": "nodemon --watch src --exec \"node build.js\"",
+    "build": "node build.js",
+    "build:min": "node build.js --minify"
+  },
+  "keywords": [
+    "poker",
+    "broadcast",
+    "subtitle",
+    "google-apps-script"
+  ],
+  "author": "garimto81",
+  "license": "MIT",
+  "devDependencies": {
+    "nodemon": "^3.0.0"
+  }
+}

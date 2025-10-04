@@ -3,7 +3,8 @@
 
 ## 📋 문서 정보
 - **작성일**: 2025-10-04
-- **버전**: v8
+- **최종 수정**: 2025-10-05
+- **버전**: v10.1
 - **대상 독자**: 개발자, 시스템 관리자
 
 ---
@@ -112,27 +113,14 @@ PokerStars | Final Table | 7         | #2       | Kim Minsu  | KR
 PokerStars | Final Table | 7         | #3       | Lee Hyun   | KR
 ```
 
-### 2.3 TYPE Sheet - `CountryMap` 탭
+### 2.3 국가 코드 처리 (v9 변경)
 
-#### 컬럼 구조
-| 컬럼명 | 데이터 타입 | 예시 | 설명 |
-|--------|------------|------|------|
-| **Code** | String(2) | `US` | 국가 코드 (대문자) |
-| **Name** | String | `United States of America` | 국가 풀네임 |
+**Type 탭의 Nationality 컬럼**에 있는 2자리 국가 코드(US, KR 등)를 **그대로 사용**합니다.
 
-#### 데이터 예시
-```
-Code | Name
-US   | United States of America
-KR   | South Korea
-JP   | Japan
-CN   | China
-```
-
-#### 변환 로직
-- 입력: `US` → 출력: `United States of America`
-- 매핑 없으면: `ZZ` → 출력: `ZZ` (코드 그대로)
-- 이미 풀네임이면: `South Korea` → 출력: `South Korea` (그대로)
+#### 변경 사항 (v9)
+- ❌ CountryMap 탭 제거됨
+- ❌ `getCountryMap()` 함수 삭제됨
+- ✅ 2자리 국가 코드 직접 출력 (US, KR, JP 등)
 
 ---
 
@@ -191,30 +179,8 @@ CN   | China
   }
   ```
 
-#### 📌 `getCountryMap(typeIdOverride)`
-- **목적**: CountryMap 탭에서 국가 코드-풀네임 매핑 읽기
-- **파라미터**: `typeIdOverride` (선택)
-- **반환**:
-  ```javascript
-  {
-    ok: true,
-    map: {
-      "US": "United States of America",
-      "KR": "South Korea",
-      ...
-    },
-    typeId: "1J-lf8bYTLPb..."
-  }
-  ```
-- **탭 없을 때**:
-  ```javascript
-  {
-    ok: true,
-    map: {},
-    typeId: "...",
-    note: "TAB_NOT_FOUND"
-  }
-  ```
+#### 📌 ~~`getCountryMap(typeIdOverride)`~~ (v9에서 삭제됨)
+- **삭제 사유**: 2자리 국가 코드를 그대로 사용하므로 불필요
 
 #### 📌 `getTimeOptions(cueIdOverride)`
 - **목적**: virtual 탭의 C열에서 ±20분 범위 시간 목록 추출
@@ -238,16 +204,18 @@ CN   | China
 #### 📌 `buildFileName(kind, hhmm, tableNo, playerOrLabel)`
 - **목적**: 파일명 자동 생성
 - **파라미터**:
-  - `kind`: 모드 (`PU`, `ELIM`, `L3`, `LEADERBOARD`, 기타 → `SC`)
+  - `kind`: 모드 (`PU`, `ELIM`, `L3`, `LEADERBOARD`, `BATCH`, 기타 → `SC`)
   - `hhmm`: 시간 4자리 (예: `1742`)
   - `tableNo`: 테이블 번호
   - `playerOrLabel`: 플레이어 이름 또는 테이블 레이블
 - **로직**:
   - 특수문자/공백 → 언더스코어 변환
   - LEADERBOARD는 테이블 레이블 사용, 나머지는 플레이어 이름 사용
+  - BATCH 모드 지원 (v10 추가)
 - **반환 예시**:
   - `1742_John_Doe_PU`
   - `1742_Table7_LEADERBOARD`
+  - `1742_Batch_3items` (v10)
 
 #### 📌 `updateVirtual(payload)`
 - **목적**: virtual 탭 업데이트 (핵심 함수)
@@ -307,10 +275,11 @@ const state = {
   typeRows: [],           // Type 탭 전체 데이터
   byRoom: {},             // Room별 인덱스
   byRoomTable: {},        // Room+Table별 인덱스
+  tableList: [],          // v9: Room+Table 통합 목록
   timeCenter: '',         // 현재 시각
   cueId: '',              // CUE Sheet ID (localStorage)
   typeId: '',             // TYPE Sheet ID (localStorage)
-  countryMap: {}          // 국가 코드 → 풀네임 매핑
+  batch: []               // v10: 배치 전송용 배열
 };
 ```
 
@@ -379,14 +348,25 @@ function rebuildPreview() {
 }
 ```
 
-#### ELIM (Elimination)
+#### ELIM (Elimination) - v9 업데이트
 ```javascript
-const country = (countryFull).toUpperCase();
+const country = (player.nat).toUpperCase();  // 2자리 코드 그대로
 const name = (playerName).toUpperCase();
-const prize = (selPrize 값) === '유' ? '상금 유' : '상금 무';
 
-return `${country}\n${name}\nELIMINATED\n${prize.toUpperCase()}`;
+// 상금 없음
+if (selPrize.value === '') {
+  return `${name} / ${country}\nELIMINATED`;
+}
+
+// 상금 있음
+const place = prizePlace.value;    // 예: "5"
+const amount = prizeAmount.value;  // 예: "10000"
+return `${name} / ${country}\nELIMINATED IN ${place}TH PLACE ($${amount})`;
 ```
+
+**출력 예시:**
+- 상금 없음: `JOHN DOE / US\nELIMINATED`
+- 상금 있음: `JOHN DOE / US\nELIMINATED IN 5TH PLACE ($10000)`
 
 #### L3 (Lower Third)
 ```javascript
@@ -466,7 +446,7 @@ return lines.join('\n') + '\n\n' + footer;
 
 ## 5. 데이터 플로우 다이어그램
 
-### 5.1 초기 로딩
+### 5.1 초기 로딩 (v9 업데이트)
 
 ```
 1. 페이지 로드
@@ -479,18 +459,15 @@ return lines.join('\n') + '\n\n' + footer;
    ↓
 5. reloadSheets()
    ├─ getTimeOptions() → 시간 목록 로드
-   ├─ getTypeRows() → 플레이어 정보 로드
-   └─ getCountryMap() → 국가 매핑 로드
+   └─ getTypeRows() → 플레이어 정보 로드
    ↓
-6. indexTypeRows() → 인덱스 생성
+6. indexTypeRows() → 인덱스 생성 (byRoomTable, tableList)
    ↓
-7. fillRooms() → Room 드롭다운 채우기
+7. fillRoomTables() → Room+Table 통합 드롭다운 채우기 (v9)
    ↓
-8. fillTables() → Table 드롭다운 채우기
+8. fillSeats() → Seat 드롭다운 채우기 ("#1 - John Doe" 형식)
    ↓
-9. fillSeats() → Seat 드롭다운 채우기
-   ↓
-10. 사용 준비 완료
+9. 사용 준비 완료
 ```
 
 ### 5.2 전송 플로우
@@ -738,9 +715,114 @@ console.log('디버그:', state);
 
 ---
 
-## 12. 확장 가능성
+## 12. v10 배치 전송 기능
 
-### 12.1 추가 모드 구현
+### 12.1 개요
+여러 플레이어 정보를 한 번에 처리하는 기능입니다. 각 플레이어별로 다른 모드를 선택할 수 있으며, 한 번의 서버 호출로 모든 데이터를 전송합니다.
+
+### 12.2 데이터 구조
+```javascript
+state.batch = [
+  {
+    mode: 'PU',
+    player: 'John Doe',
+    seat: '#1',
+    nat: 'US',
+    content: 'JOHN DOE / US\nCURRENT STACK - 1,234,000 (62BB)'
+  },
+  {
+    mode: 'ELIM',
+    player: 'Kim Minsu',
+    seat: '#2',
+    nat: 'KR',
+    content: 'KIM MINSU / KR\nELIMINATED'
+  }
+];
+```
+
+### 12.3 핵심 함수
+
+#### `addToBatch()`
+- **목적**: 현재 입력된 플레이어 정보를 배치에 추가
+- **동작**:
+  1. 현재 미리보기 내용 가져오기
+  2. `state.batch` 배열에 추가
+  3. `renderBatchList()` 호출하여 UI 갱신
+  4. `moveToNextSeat()` 호출하여 다음 좌석으로 이동
+
+#### `sendBatch()`
+- **목적**: 배치 전체를 한 번에 전송
+- **동작**:
+  1. `state.batch`의 모든 content를 `\n\n`로 결합
+  2. `updateVirtual()` 호출 (kind: 'BATCH')
+  3. 성공 시 `state.batch = []` 초기화
+
+#### `updateSendButton()`
+- **목적**: 전송 버튼 텍스트를 배치 상태에 따라 변경
+- **로직**:
+  ```javascript
+  if (state.batch.length > 0) {
+    btnSend.innerHTML = `📤 배치 전송 (${state.batch.length}건)`;
+  } else {
+    btnSend.innerHTML = '전송';
+  }
+  ```
+
+#### `updateBatchPreview()`
+- **목적**: 통합 미리보기 (배치 + 현재 입력) 표시
+- **로직**:
+  ```javascript
+  const batchContent = state.batch.map(item => item.content).join('\n\n');
+  const currentPreview = generateCurrentPreview();
+
+  previewEl.value = `=== 배치 전송될 내용 (${state.batch.length}건) ===\n\n${batchContent}\n\n=== 현재 입력 ===\n\n${currentPreview}`;
+  ```
+
+### 12.4 UI 컴포넌트
+
+#### 배치 섹션 (page.html:210-223)
+```html
+<section id="batchSection" class="field" style="display:none;">
+  <label>📦 배치 대기 중 (<span id="batchCount">0</span>건)</label>
+  <button id="btnClearBatch">🗑️ 전체 삭제</button>
+  <div id="batchList"><!-- 동적 생성 --></div>
+</section>
+```
+
+#### 배치 추가 버튼 (page.html:233)
+```html
+<button class="btn ghost" id="btnAddToBatch" style="display:none;">
+  ➕ 배치에 추가
+</button>
+```
+
+### 12.5 키보드 단축키
+- **Ctrl+B**: 배치에 추가 (데스크톱 사용자용)
+
+### 12.6 워크플로우
+```
+1. 플레이어 1 선택 → 정보 입력
+   ↓
+2. [➕ 배치에 추가] 클릭 (또는 Ctrl+B)
+   ↓
+3. 자동으로 다음 좌석으로 이동
+   ↓
+4. 플레이어 2 선택 → 모드 변경 가능 → 정보 입력
+   ↓
+5. [➕ 배치에 추가] 반복
+   ↓
+6. 전송 버튼이 자동으로 "📤 배치 전송 (N건)"으로 변경
+   ↓
+7. 클릭 시 `sendBatch()` 호출
+   ↓
+8. 한 번의 서버 호출로 모든 데이터 전송
+```
+
+---
+
+## 13. 확장 가능성
+
+### 13.1 추가 모드 구현
 ```javascript
 // 서버 (softsender_code.gs)
 function buildFileName(kind, hhmm, tableNo, playerOrLabel) {
@@ -757,7 +839,7 @@ function rebuildPreview() {
 }
 ```
 
-### 12.2 다국어 지원
+### 13.2 다국어 지원
 ```javascript
 const i18n = {
   ko: { send: '전송', success: '완료' },

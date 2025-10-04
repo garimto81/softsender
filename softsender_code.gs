@@ -1,13 +1,15 @@
 /***********************
- * Soft Content Sender — v8
- * - CountryMap(시트)만 사용, 내장 폴백 제거
+ * Soft Content Sender — v10.1
+ * - v10.1: UX 개선 (스마트 전송 버튼, 통합 미리보기)
+ * - v10: 배치 전송 기능 추가
+ * - v9: Room+Table 통합, ELIM 개선
+ * - CountryMap 제거 (2자리 국가 코드 직접 사용)
  ***********************/
 const CFG = {
   CUE_SHEET_ID: '13LpVWYHaJAMtvc1OiCtkrcAYqavkXWaTg3Vke0R0CUQ', // 기본값
   CUE_TAB_VIRTUAL: 'virtual',
   TYPE_SHEET_ID: '1J-lf8bYTLPbpdhieUNdb8ckW_uwdQ3MtSBLmyRIwH7U',  // 기본값
   TYPE_TAB: 'Type',
-  COUNTRY_MAP_TAB: 'CountryMap', // [Code, Name]
 
   FIX_E: '미완료',
   FIX_G: 'SOFT',
@@ -68,34 +70,7 @@ function getTypeRows(typeIdOverride) {
   }
 }
 
-/* CountryMap 읽기 (선택 탭, override 수용) */
-function getCountryMap(typeIdOverride) {
-  try {
-    const typeId = String(typeIdOverride || CFG.TYPE_SHEET_ID).trim();
-    const ss = SpreadsheetApp.openById(typeId);
-    const sh = ss.getSheetByName(CFG.COUNTRY_MAP_TAB);
-    if (!sh) return { ok:true, map:{}, typeId, note:'TAB_NOT_FOUND' };
-
-    const values = sh.getDataRange().getValues();
-    if (values.length < 2) return { ok:true, map:{}, typeId, note:'EMPTY' };
-
-    // 기대 헤더: Code, Name (대소문자 무시)
-    const headers = values[0].map(v => String(v).trim());
-    const colCode = headers.findIndex(h => h.toLowerCase()==='code');
-    const colName = headers.findIndex(h => h.toLowerCase()==='name');
-    if (colCode<0 || colName<0) return { ok:true, map:{}, typeId, note:'BAD_HEADERS' };
-
-    const map = {};
-    values.slice(1).forEach(r=>{
-      const code = String(r[colCode]||'').trim().toUpperCase();
-      const name = String(r[colName]||'').trim();
-      if (code && name) map[code]=name;
-    });
-    return { ok:true, map, typeId };
-  } catch(e) {
-    return { ok:false, error:String(e) };
-  }
-}
+/* CountryMap 제거됨 - 2자리 국가 코드를 그대로 사용 */
 
 /* 시간 드롭다운(±20분) */
 function getTimeOptions(cueIdOverride) {
@@ -136,7 +111,7 @@ function getTimeOptions(cueIdOverride) {
 /* 파일명: HHmm_<name>_<mode> */
 function buildFileName(kind, hhmm, tableNo, playerOrLabel) {
   const safe = (s) => String(s || '').trim().replace(/[^\w\-#]+/g,'_');
-  const modes = ['PU','ELIM','L3','LEADERBOARD'];
+  const modes = ['PU','ELIM','L3','LEADERBOARD','BATCH'];
   const mode = modes.includes(kind) ? kind : 'SC';
   const time = String(hhmm || '').padStart(4,'0');
   const name = (kind==='LEADERBOARD') ? safe(playerOrLabel || ('Table'+(tableNo||''))) : safe(playerOrLabel || 'Player');

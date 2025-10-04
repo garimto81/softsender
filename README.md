@@ -25,36 +25,66 @@ Google Apps Script 기반 웹 애플리케이션으로, 포커 토너먼트의 �
 - 자동 콤마 포맷팅
 - BB(Big Blind) 자동 계산
 
-## 🚀 최근 개선 사항 (v9)
+## 🚀 v10.1 UX 개선 완료 (2025-10-05)
 
-### 성능 최적화
+### ✨ 신규 기능 (v10.1 - UX 최적화)
+- ✅ **스마트 전송 버튼** - 단일/배치 자동 감지
+  - 배치 항목 있으면 자동으로 "📤 배치 전송 (N건)" 표시
+  - 전송 버튼 1개로 통합 (혼란 제거)
+  - 배치 리스트 자동 표시/숨김
+- ✅ **통합 미리보기** - 배치 + 현재 입력 함께 표시
+- ✅ **모드 변경 피드백** - 배치 작업 중 모드 변경 시 토스트 알림
+- ✅ **간소화된 워크플로우** - [➕ 배치에 추가] 버튼 자동 표시
+
+### ✨ 이전 기능 (v10)
+- ✅ **배치 전송 (Batch Builder)** - 여러 플레이어 한 번에 처리
+  - 각 플레이어별 다른 모드 선택 가능 (PU/ELIM/L3 조합)
+  - 한 번의 서버 호출로 모든 데이터 전송
+  - 자동 다음 좌석 이동
+  - 모바일 최적화 UI (터치 64px)
+
+### ✨ 이전 기능 (v9 Phase 1)
+- ✅ **Room+Table 통합 드롭다운** - 클릭 50% 감소
+- ✅ **좌석 선택에 이름 표시** - "#1 - John Doe" 형식
+- ✅ **ELIM 모드 개선** - 순위/상금 정보 표시
+- ✅ **국가 코드 간소화** - 2자리 코드 직접 사용
+
+### 🛠️ 성능 최적화
 - ✅ 메모리 누수 방지 (이벤트 위임)
 - ✅ CPU 사용량 30% 감소 (디바운싱)
 - ✅ DOM 조회 90% 감소 (캐싱)
 - ✅ 렌더링 성능 향상 (DocumentFragment)
 
-### 코드 품질
-- ✅ 중복 코드 제거
+### 📊 코드 품질
+- ✅ 중복 코드 제거 (findPlayerBySeat 헬퍼)
 - ✅ 상수 관리 (CONSTANTS 객체)
-- ✅ 헬퍼 함수 통합
+- ✅ DRY 원칙 적용 (formatKM 리팩토링)
 - ✅ 코드 품질: ⭐⭐⭐⭐⭐ (5/5)
-
-자세한 내용: [개선 보고서](docs/CODE_IMPROVEMENTS.md)
 
 ## 📂 프로젝트 구조
 
 ```
-virtual_table_app/
-├── gas/
-│   ├── softsender.gs          # 클라이언트 UI (HTML + CSS + JS)
-│   └── softsender_code.gs     # 서버 로직 (Google Apps Script)
+softsender/
+├── src/                       # 개발 소스 (모듈별 분리)
+│   ├── template.html          # HTML 템플릿
+│   ├── styles.css             # CSS 스타일
+│   ├── constants.js           # 상수 정의
+│   ├── utils.js               # 유틸리티 함수
+│   ├── preview.js             # 미리보기 로직
+│   ├── batch.js               # 배치 전송 기능
+│   ├── events.js              # 이벤트 핸들러
+│   └── init.js                # 초기화
+├── dist/                      # 빌드 출력 (배포용)
+│   └── page.html              # 병합된 단일 파일 ← GAS에 업로드
+├── page.html                  # 레거시 파일 (참고용, 사용 안함)
+├── softsender_code.gs         # 서버 로직 (Google Apps Script)
+├── build.js                   # 빌드 스크립트
+├── package.json               # npm 설정
 └── docs/
+    ├── BUILD.md               # 빌드 시스템 문서
     ├── PRD.md                 # 제품 요구사항 명세서
     ├── LLD.md                 # 저수준 설계 문서
-    ├── CODE_REVIEW_REPORT.md  # 코드 리뷰 보고서
-    ├── CODE_IMPROVEMENTS.md   # 개선 사항 문서
-    ├── FEATURE_ENHANCEMENT_PLAN.md
-    └── TEST_PLAN_v9.md        # 테스트 계획
+    └── FEATURE_ENHANCEMENT_PLAN.md  # v9 개선 계획 및 이력
 ```
 
 ## 🛠️ 기술 스택
@@ -64,31 +94,71 @@ virtual_table_app/
 - **Storage**: Google Sheets
 - **Deployment**: Google Apps Script Web App
 
-## 📦 설치 및 배포
+## 📦 개발 환경 설정
+
+### 1. Node.js 설치
+- [Node.js](https://nodejs.org/) 다운로드 및 설치 (v18 이상 권장)
+
+### 2. 의존성 설치
+```bash
+npm install
+```
+
+### 3. 빌드 시스템 사용
+
+#### 개발 모드 (자동 빌드)
+```bash
+npm run dev
+```
+- `src/` 폴더의 파일 변경 감지 → 자동으로 `dist/page.html` 재생성
+
+#### 일반 빌드
+```bash
+npm run build
+```
+
+#### 배포용 최적화 빌드
+```bash
+npm run build:min
+```
+- 주석 제거 + 압축 (약 11% 크기 감소)
+
+---
+
+## 🚀 배포 프로세스
 
 ### 1. Google Apps Script 프로젝트 생성
 1. [Google Apps Script](https://script.google.com/) 접속
 2. 새 프로젝트 생성
 
-### 2. 코드 배포
-1. `gas/softsender_code.gs` 내용을 `코드.gs` 파일에 복사
-2. `gas/softsender.gs` 내용을 `page.html` 파일에 복사
+### 2. 빌드 및 배포
+```bash
+# 1. 최적화 빌드 실행
+npm run build:min
 
-### 3. Sheet ID 설정
+# 2. dist/page.html 열기
+# 3. 전체 내용 복사 (Ctrl+A → Ctrl+C)
+# 4. Google Apps Script의 page.html에 붙여넣기
+```
+
+### 3. 서버 코드 배포
+1. `softsender_code.gs` 내용을 Google Apps Script의 `코드.gs` 파일에 복사
+
+### 4. Sheet ID 설정
 `softsender_code.gs`에서 기본 Sheet ID 설정:
 ```javascript
 const DEFAULT_CUE_SHEET_ID = 'YOUR_CUE_SHEET_ID';
 const DEFAULT_TYPE_SHEET_ID = 'YOUR_TYPE_SHEET_ID';
 ```
 
-### 4. 웹 앱 배포
+### 5. 웹 앱 배포
 1. 배포 → 새 배포
 2. 유형 선택: 웹 앱
 3. 액세스 권한: 나만 또는 조직 내부
 
 ## 📖 사용 방법
 
-### 기본 워크플로우
+### 기본 워크플로우 (단일 전송)
 1. **Sheet ID 설정** (선택사항)
 2. **테이블 선택** - Room + Table 조합
 3. **좌석 선택** - 플레이어 자동 로드
@@ -96,6 +166,17 @@ const DEFAULT_TYPE_SHEET_ID = 'YOUR_TYPE_SHEET_ID';
 5. **정보 입력** - 모드별 필수 정보
 6. **미리보기 확인**
 7. **전송** - Google Sheets 업데이트
+
+### 배치 전송 워크플로우 (v10.1 개선)
+1. **플레이어 1 입력** → **[➕ 배치에 추가]** 버튼 클릭
+   - 버튼은 자동으로 나타남 (배치 리스트와 함께)
+   - 자동으로 다음 좌석 이동
+2. **플레이어 2 입력** → 모드 변경 가능 → **[➕ 배치에 추가]**
+3. **반복** (여러 플레이어)
+4. **배치 대기 중 섹션 확인** - 추가된 항목 시각적 확인
+5. **미리보기 확인** - 배치 전체 + 현재 입력 함께 표시
+6. **[📤 배치 전송 (N건)]** - 자동으로 배치 모드로 전환된 버튼 클릭
+   - 한 번의 서버 호출로 모두 전송
 
 ### 모드별 가이드
 
@@ -106,7 +187,11 @@ const DEFAULT_TYPE_SHEET_ID = 'YOUR_TYPE_SHEET_ID';
 
 #### ELIM (탈락 정보)
 - 플레이어 자동 선택
-- 상금 유/무 선택
+- 상금 여부 선택
+- 상금 있을 시: 순위 + 금액 입력
+- 출력 형식:
+  - 상금 없음: `이름 / 국기\nELIMINATED`
+  - 상금 있음: `이름 / 국기\nELIMINATED IN 5TH PLACE ($10000)`
 
 #### LEADERBOARD (리더보드)
 - Level, SB, BB, ANTE 입력
@@ -138,11 +223,10 @@ const DEFAULT_TYPE_SHEET_ID = 'YOUR_TYPE_SHEET_ID';
 
 ## 📝 문서
 
-- [PRD](docs/PRD.md) - 제품 요구사항
-- [LLD](docs/LLD.md) - 설계 문서
-- [코드 리뷰](docs/CODE_REVIEW_REPORT.md) - 품질 분석
-- [개선 사항](docs/CODE_IMPROVEMENTS.md) - 최근 업데이트
-- [테스트 계획](docs/TEST_PLAN_v9.md) - 검증 절차
+- [BUILD.md](docs/BUILD.md) - **빌드 시스템 가이드** (필독!)
+- [PRD](docs/PRD.md) - 제품 요구사항 (v10.1 업데이트)
+- [LLD](docs/LLD.md) - 기술 설계 문서 (v10.1 업데이트)
+- [FEATURE_ENHANCEMENT_PLAN](docs/FEATURE_ENHANCEMENT_PLAN.md) - v9~v10 개선 이력 및 계획
 
 ## 🤝 기여
 
@@ -155,7 +239,8 @@ MIT License
 ## 👨‍💻 개발자
 
 - **초기 개발**: garimto81
-- **코드 개선**: Claude Code Agent (v9 최적화)
+- **코드 개선**: Claude Code Agent (v9~v10 최적화)
+- **빌드 시스템**: Node.js 기반 모듈 번들링 (v10.1)
 
 ## 📞 문의
 
@@ -163,5 +248,14 @@ GitHub Issues를 통해 문의해주세요.
 
 ---
 
-**버전**: v9 (2025-10-04)
-**상태**: 프로덕션 준비 완료 ✅
+**버전**: v10.1 (2025-10-05)
+**상태**: 프로덕션 배포 완료 ✅
+
+### 📅 버전 히스토리
+- **v10.1** (2025-10-05):
+  - UX 대폭 개선 - 스마트 전송 버튼, 통합 미리보기
+  - **빌드 시스템 도입** - Node.js 기반 모듈 분리 및 번들링
+  - 개발/배포 분리로 코드 유지보수성 향상
+- **v10** (2025-10-05): 배치 전송 기능 추가 (여러 플레이어 한 번에 처리)
+- **v9** (2025-10-05): Room+Table 통합, ELIM 개선, 성능 최적화
+- **v8** (2025-10-04): 초기 릴리스

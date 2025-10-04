@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <!-- INJECT:CSS -->
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Soft Content Sender</h1>
+      <div class="muted" style="font-size:0.75em; margin-top:-4px;">v10.1 (2025-10-05)</div>
+    </div>
+    <div id="status">로딩중…</div>
+  </header>
+
+  <!-- 시트ID 오버라이드 -->
+  <section class="field">
+    <label>Sheet IDs</label>
+    <div class="row two">
+      <input id="cueId" placeholder="CUE Sheet ID(옵션)" />
+      <input id="typeId" placeholder="TYPE Sheet ID(옵션)" />
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:10px;">
+      <button class="btn ghost" id="btnSaveIds">ID 저장</button>
+      <button class="btn ghost" id="btnClearIds">ID 초기화</button>
+    </div>
+    <div class="muted" id="idsHint" style="margin-top:6px;"></div>
+  </section>
+
+  <section class="field">
+    <div class="row two">
+      <div class="field">
+        <label>행 선택(시간)</label>
+        <div style="display:flex;gap:12px;align-items:center;">
+          <input id="chkAuto" type="checkbox" checked style="width:auto;height:auto;transform:scale(1.4);" />
+          <span class="muted">현재 시각 자동 선택</span>
+        </div>
+      </div>
+      <div class="field">
+        <label>시간 드롭다운(±20분)</label>
+        <select id="selTime"><option value="">(미선택: 현재시각)</option></select>
+      </div>
+    </div>
+  </section>
+
+  <section class="field">
+    <div class="row two">
+      <div class="field">
+        <label>파일명(전송 전 수정 가능) — 형식: <b>HHmm_name_mode</b></label>
+        <input id="fileName" placeholder="예: 1742_John_Doe_ELIM / 1742_Table7_LEADERBOARD" />
+      </div>
+      <div class="field">
+        <label>모드</label>
+        <div class="tabs">
+          <button id="tabPU" class="active">스택 업데이트(PU)</button>
+          <button id="tabELIM">탈락 정보(ELIM)</button>
+          <button id="tabL3">프로필 자막(L3)</button>
+          <button id="tabLB">리더보드(LEADERBOARD)</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="field">
+    <div class="field">
+      <label>테이블 선택</label>
+      <select id="selRoomTable"><option value="">-</option></select>
+    </div>
+
+    <div class="field">
+      <label>좌석 선택</label>
+      <select id="selSeat"><option value="">좌석 선택</option></select>
+    </div>
+
+    <div class="field" id="singleFields">
+      <label>국가 코드 (2자리)</label>
+      <input id="countryCode" placeholder="예: US, KR" readonly />
+    </div>
+  </section>
+
+  <!-- PU -->
+  <section id="panelPU" class="field">
+    <div class="row two">
+      <div class="field">
+        <label>칩스택(쉼표 포함) *</label>
+        <input id="stackAmt" placeholder="예: 1,234,000" inputmode="numeric" />
+      </div>
+      <div class="field">
+        <label>Big Blind(정수) *</label>
+        <input id="bigBlind" placeholder="예: 20000" inputmode="numeric" />
+      </div>
+    </div>
+    <div class="row two">
+      <div class="field">
+        <label>계산된 BB (자동, 반올림)</label>
+        <input id="stackBBView" readonly placeholder="예: 62BB" />
+      </div>
+      <input id="stackBB" type="hidden" />
+    </div>
+  </section>
+
+  <!-- ELIM -->
+  <section id="panelELIM" class="field" style="display:none;">
+    <div class="row two">
+      <div class="field">
+        <label>상금 여부</label>
+        <select id="selPrize">
+          <option value="">상금 없음</option>
+          <option value="prize">상금 있음</option>
+        </select>
+      </div>
+      <div class="field" id="prizeDetails" style="display:none;">
+        <label>순위 및 상금</label>
+        <div class="row two">
+          <input id="prizePlace" placeholder="예: 5" inputmode="numeric" />
+          <input id="prizeAmount" placeholder="예: 10000" inputmode="numeric" />
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- L3 -->
+  <section id="panelL3" class="field" style="display:none;">
+    <p class="muted">"프로필 자막" + 이름 2줄이 J셀에 추가됩니다.</p>
+  </section>
+
+  <!-- LEADERBOARD -->
+  <section id="panelLB" class="field" style="display:none;">
+    <div class="row two">
+      <div class="field">
+        <label>Level</label>
+        <input id="lbLevel" placeholder="예: 15" inputmode="numeric" />
+      </div>
+      <div class="field">
+        <label>Table Label (파일명용)</label>
+        <input id="lbTableLabel" placeholder="예: Table7" />
+      </div>
+    </div>
+    <div class="row three">
+      <div class="field">
+        <label>SB</label>
+        <input id="lbSB" placeholder="예: 25000" inputmode="numeric" />
+      </div>
+      <div class="field">
+        <label>BB</label>
+        <input id="lbBB" placeholder="예: 50000" inputmode="numeric" />
+      </div>
+      <div class="field">
+        <label>ANTE</label>
+        <input id="lbAnte" placeholder="예: 50000" inputmode="numeric" />
+      </div>
+    </div>
+
+    <div class="field">
+      <label>플레이어 칩스택 입력(이름 자동 로드, 필요시 수정)</label>
+      <div id="lbList" class="lb-list"></div>
+    </div>
+  </section>
+
+  <!-- 액션 버튼 (입력 직후 바로 처리) -->
+  <section class="field" style="display:flex;gap:12px;justify-content:flex-end;align-items:center;">
+    <button class="btn ghost" id="btnAddToBatch" style="display:none;">
+      ➕ 배치에 추가
+    </button>
+    <button class="btn primary" id="btnSend" style="min-width:200px;">전송</button>
+  </section>
+
+  <!-- 배치 리스트 (항목 있을 때만 표시) -->
+  <section id="batchSection" class="field" style="display:none; background:var(--panel2); padding:var(--pad); border-radius:var(--radius); border:2px solid var(--accent);">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <label style="margin:0;">📦 배치 대기 중 (<span id="batchCount">0</span>건)</label>
+      <button class="btn ghost" id="btnClearBatch" style="height:auto; padding:8px 14px; font-size:0.9em;">
+        🗑️ 전체 삭제
+      </button>
+    </div>
+
+    <!-- 배치 리스트 -->
+    <div id="batchList" style="max-height:250px; overflow-y:auto; -webkit-overflow-scrolling:touch;">
+      <!-- 동적 생성 -->
+    </div>
+  </section>
+
+  <!-- 미리보기 (통합) -->
+  <section class="field">
+    <label id="previewLabel">미리보기</label>
+    <textarea id="preview" readonly></textarea>
+  </section>
+
+  <section style="margin-top:12px;">
+    <div class="muted" id="footerInfo"></div>
+  </section>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  const LS_KEYS = { CUE:'SCS_CUE_ID', TYPE:'SCS_TYPE_ID' };
+
+  // INJECT:CONSTANTS
+  // INJECT:UTILS
+  // INJECT:PREVIEW
+  // INJECT:BATCH
+  // INJECT:EVENTS
+  // INJECT:INIT
+</script>
+</body>
+</html>
