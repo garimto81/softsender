@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const VERSION = require('./version');
 
 // 빌드 옵션
 const isMinify = process.argv.includes('--minify');
@@ -22,6 +23,7 @@ function build() {
   // 1. 소스 파일 읽기
   console.log('📖 Reading source files...');
   const template = readSource('template.html');
+  const designTokens = readSource('design-tokens.css');
   const css = readSource('styles.css');
   const constants = readSource('constants.js');
   const utils = readSource('utils.js');
@@ -33,7 +35,7 @@ function build() {
   // 2. 템플릿 치환
   console.log('🔧 Merging files...');
   let merged = template
-    .replace('<!-- INJECT:CSS -->', `<style>\n${css}\n  </style>`)
+    .replace('<!-- INJECT:CSS -->', `<style>\n${designTokens}\n\n${css}\n  </style>`)
     .replace('// INJECT:CONSTANTS', constants)
     .replace('// INJECT:UTILS', utils)
     .replace('// INJECT:PREVIEW', preview)
@@ -56,7 +58,7 @@ function build() {
   const buildTime = new Date().toISOString();
   const buildMode = isMinify ? 'MINIFIED' : 'NORMAL';
   const buildInfo = `<!--
-  Soft Content Sender v10.1
+  Soft Content Sender ${VERSION.fullVersion}
   Build Time: ${buildTime}
   Build Mode: ${buildMode}
 
@@ -66,18 +68,18 @@ function build() {
 
 `;
 
-  // 5. 최종 파일 생성
+  // 5. 최종 파일 생성 (프로젝트 루트에 출력)
   const output = buildInfo + merged;
-  const distPath = path.join(__dirname, 'dist', 'page.html');
+  const outputPath = path.join(__dirname, 'page.html');
 
-  fs.writeFileSync(distPath, output, 'utf-8');
+  fs.writeFileSync(outputPath, output, 'utf-8');
 
   // 6. 결과 출력
-  const stats = fs.statSync(distPath);
+  const stats = fs.statSync(outputPath);
   const sizeKB = (stats.size / 1024).toFixed(2);
 
   console.log('\n✅ Build complete!');
-  console.log(`📦 Output: dist/page.html (${sizeKB} KB)`);
+  console.log(`📦 Output: page.html (${sizeKB} KB)`);
   console.log(`🕐 Time: ${buildTime}`);
   console.log(`🎯 Mode: ${buildMode}\n`);
 }

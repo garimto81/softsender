@@ -1,12 +1,16 @@
 {
   "name": "soft-content-sender",
-  "version": "10.1.0",
+  "version": "10.3.0",
   "description": "Poker broadcast subtitle content management system",
   "main": "build.js",
   "scripts": {
     "dev": "nodemon --watch src --exec \"node build.js\"",
     "build": "node build.js",
-    "build:min": "node build.js --minify"
+    "build:min": "node build.js --minify",
+    "version:patch": "node scripts/bump-version.js patch",
+    "version:minor": "node scripts/bump-version.js minor",
+    "version:major": "node scripts/bump-version.js major",
+    "version:sync": "node scripts/sync-version.js"
   },
   "keywords": [
     "poker",

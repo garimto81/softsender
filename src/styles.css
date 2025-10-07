@@ -1,10 +1,10 @@
-:root{
-  --bg:#0E0F10; --panel:#141516; --panel2:#1B1C1D; --border:#2A2B2C;
-  --txt:#F2F3F5; --sub:#B9C0CC; --accent:#19D27C; --err:#FF6464;
-  --radius:16px; --pad:18px;
+/* ============================================
+   Legacy Styles (Design Tokens 기반)
+   ============================================
+   Note: 색상/타이포/공간 변수는 design-tokens.css에 정의됨
+   여기서는 레이아웃/컴포넌트 스타일만 관리
+   ============================================ */
 
-  --fs-base:24px; --fs-sm:19px; --fs-h:32px; --touch:64px;
-}
 html,body{background:var(--bg); color:var(--txt); font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; font-size:var(--fs-base); margin:0;}
 .wrap{max-width:980px;margin:0 auto;padding:14px 14px 120px;}
 header{display:flex;justify-content:space-between;align-items:flex-end;margin:8px 0 12px;}

@@ -1,0 +1,240 @@
+/* ============================================
+   Design Tokens - Focus Mode UI System
+   ============================================
+
+   Purpose: 생방송 자막 시스템을 위한 디자인 토큰
+   Based on: Think Hard 프레임워크 분석 결과
+   Target: 모바일 퍼스트 (393px~768px)
+
+   참고:
+   - 인지심리학 기반 (Hick's Law, Miller's Law, Fitts's Law)
+   - 생방송 환경 최적화 (스트레스 상황 대응)
+   - Apple HIG 터치 가이드라인 (최소 48px, 권장 64px)
+
+   ============================================ */
+
+/* ============================================
+   1. Color System
+   ============================================ */
+
+:root {
+  /* --- Background --- */
+  --color-bg: #0A0B0C;           /* 거의 검정 (눈 피로 최소화) */
+  --color-surface: #131416;      /* 카드/패널 배경 */
+  --color-surface-hover: #1C1D1F; /* hover 상태 */
+  --color-border: #2A2B2C;       /* 구분선 (기존 유지) */
+
+  /* --- Text --- */
+  --color-text-primary: #FFFFFF;   /* 주요 텍스트 */
+  --color-text-secondary: #A0A0A0; /* 보조 텍스트 */
+  --color-text-disabled: #606060;  /* 비활성 텍스트 */
+
+  /* --- Semantic Colors (신호등 체계) --- */
+  --color-success: #10B981;  /* 녹색 - 성공/완료 */
+  --color-warning: #F59E0B;  /* 주황 - 경고/주의 */
+  --color-error: #EF4444;    /* 빨강 - 에러/긴급 */
+  --color-info: #3B82F6;     /* 파랑 - 정보 */
+
+  /* --- Mode Colors (직관적 연상) --- */
+  --color-mode-pu: #3B82F6;      /* 파랑 - 일상 작업 (Player Update) */
+  --color-mode-elim: #EF4444;    /* 빨강 - 긴급 상황 (Eliminate) */
+  --color-mode-l3: #8B5CF6;      /* 보라 - 특별 작업 (Lower Third) */
+  --color-mode-lb: #F59E0B;      /* 주황 - 순위 표시 (Leaderboard) */
+
+  /* --- Accent --- */
+  --color-accent: #06B6D4;       /* 시안 - 포커 테마, 주요 액션 */
+
+  /* --- Legacy Aliases (기존 코드 호환) --- */
+  --bg: #0E0F10;           /* 기존 배경색 유지 */
+  --panel: #141516;        /* 기존 패널색 유지 */
+  --panel2: #1B1C1D;       /* 기존 패널2 유지 */
+  --border: #2A2B2C;       /* 기존 테두리 유지 */
+  --txt: #F2F3F5;          /* 기존 텍스트 유지 */
+  --sub: #B9C0CC;          /* 기존 보조 텍스트 유지 */
+  --accent: #19D27C;       /* 기존 accent 색상 유지 (녹색) */
+  --err: #FF6464;          /* 기존 에러 색상 유지 */
+}
+
+/* ============================================
+   2. Typography System
+   ============================================ */
+
+:root {
+  /* --- Type Scale (1.25 비율, Major Third) --- */
+  --text-xs: 12px;   /* 보조 정보 (최소 크기) */
+  --text-sm: 16px;   /* 레이블, iOS 줌 방지 최소값 */
+  --text-base: 20px; /* 본문 (읽기 편안한 크기) */
+  --text-lg: 25px;   /* 입력값 (명확한 가독성) */
+  --text-xl: 31px;   /* 제목 */
+  --text-2xl: 39px;  /* 미리보기 (최종 확인용) */
+
+  /* --- Line Height --- */
+  --leading-tight: 1.2;   /* 제목용 */
+  --leading-normal: 1.5;  /* 본문 (기본) */
+  --leading-loose: 1.8;   /* 긴 텍스트 */
+
+  /* --- Font Weight --- */
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-bold: 700;
+  --font-black: 900;
+
+  /* --- Legacy Aliases (기존 값 유지) --- */
+  --fs-xs: var(--text-xs);
+  --fs-sm: 19px;              /* 기존 값 유지 */
+  --fs-base: 24px;            /* 기존 값 유지 */
+  --fs-lg: var(--text-lg);
+  --fs-h: 32px;               /* 기존 값 유지 */
+}
+
+/* ============================================
+   3. Spacing System (8px 기준)
+   ============================================ */
+
+:root {
+  /* --- Base Unit: 8px --- */
+  --space-1: 4px;   /* 0.5x - 최소 간격 */
+  --space-2: 8px;   /* 1x - 기본 단위 */
+  --space-3: 12px;  /* 1.5x - 패딩/마진 */
+  --space-4: 16px;  /* 2x - 요소 간격 */
+  --space-6: 24px;  /* 3x - 섹션 구분 */
+  --space-8: 32px;  /* 4x - 큰 섹션 */
+  --space-12: 48px; /* 6x - 블록 구분 */
+  --space-16: 64px; /* 8x - 화면 구분 */
+
+  /* --- Component Spacing --- */
+  --touch-min: 48px;     /* Apple HIG 최소 터치 영역 */
+  --touch-target: 64px;  /* 권장 터치 영역 (생방송 환경) */
+  --input-height: 56px;  /* 입력 필드 높이 (편안한 터치) */
+
+  /* --- Safe Area (iOS) --- */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+
+  /* --- Legacy Aliases --- */
+  --radius: 16px;        /* 기존 border-radius */
+  --pad: 18px;           /* 기존 padding */
+  --touch: var(--touch-target); /* 기존 터치 영역 */
+}
+
+/* ============================================
+   4. Animation System
+   ============================================ */
+
+:root {
+  /* --- Duration --- */
+  --duration-instant: 0ms;      /* 즉시 (트랜지션 제거) */
+  --duration-fast: 100ms;       /* 빠른 피드백 (입력 반응) */
+  --duration-normal: 200ms;     /* 일반 전환 (버튼 hover) */
+  --duration-slow: 400ms;       /* 강조 전환 (모드 변경) */
+
+  /* --- Easing Functions --- */
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);          /* 가속 (시작 느림) */
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);         /* 감속 (끝 느림) */
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);    /* 가속+감속 */
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.27, 1.55); /* 튕김 효과 */
+}
+
+/* ============================================
+   5. Shadow System (Depth)
+   ============================================ */
+
+:root {
+  /* --- Elevation --- */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.2);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.3);
+
+  /* --- Focus/Active State --- */
+  --ring-offset: 2px;
+  --ring-width: 4px;
+  --ring-color: rgba(6, 182, 212, 0.3); /* accent 색상 기반 */
+}
+
+/* ============================================
+   6. Z-Index Scale (Stacking Order)
+   ============================================ */
+
+:root {
+  --z-base: 0;       /* 기본 레이어 */
+  --z-dropdown: 10;  /* 드롭다운 */
+  --z-sticky: 20;    /* 고정 헤더 */
+  --z-modal: 30;     /* 모달 배경 */
+  --z-toast: 40;     /* 토스트 메시지 */
+  --z-tooltip: 50;   /* 툴팁 (최상위) */
+}
+
+/* ============================================
+   7. Breakpoints (Mobile First)
+   ============================================ */
+
+:root {
+  --bp-mobile: 393px;   /* iPhone 14 Pro 기준 */
+  --bp-tablet: 768px;   /* iPad 기준 */
+  --bp-desktop: 1024px; /* Desktop 기준 */
+}
+
+/* ============================================
+   8. Component-Specific Tokens
+   ============================================ */
+
+:root {
+  /* --- Button --- */
+  --btn-height: var(--touch-target);      /* 64px */
+  --btn-padding-x: var(--space-6);        /* 24px */
+  --btn-font-size: var(--text-base);      /* 20px */
+  --btn-font-weight: var(--font-black);   /* 900 */
+  --btn-border-radius: var(--radius);     /* 16px */
+
+  /* --- Input --- */
+  --input-height: var(--touch-target);    /* 64px */
+  --input-padding-x: var(--pad);          /* 18px */
+  --input-font-size: var(--text-base);    /* 20px */
+  --input-border-radius: var(--radius);   /* 16px */
+  --input-border-width: 1px;
+
+  /* --- Toast --- */
+  --toast-min-width: 280px;
+  --toast-max-width: 90vw;
+  --toast-padding: 12px 16px;
+  --toast-border-radius: 14px;
+}
+
+/* ============================================
+   9. Utility Classes (Future Use)
+   ============================================ */
+
+/*
+  Note: 현재는 토큰만 정의, 실제 클래스는 v11에서 추가 예정
+
+  예시:
+  .text-primary { color: var(--color-text-primary); }
+  .bg-surface { background: var(--color-surface); }
+  .p-4 { padding: var(--space-4); }
+*/
+
+/* ============================================
+   10. Print / Dark Mode (Future Use)
+   ============================================ */
+
+/*
+  Note: 현재는 다크 모드 기본값만 제공
+  라이트 모드는 사용자 요청 시 추가 예정
+*/
+
+/* ============================================
+   11. Performance Optimizations
+   ============================================ */
+
+:root {
+  /* GPU 가속 활성화 */
+  --transform-gpu: translateZ(0);
+
+  /* 텍스트 렌더링 최적화 */
+  --text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

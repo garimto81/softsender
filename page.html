@@ -1,6 +1,6 @@
 <!--
-  Soft Content Sender v10.1
-  Build Time: 2025-10-04T16:57:24.881Z
+  Soft Content Sender v10.3.0
+  Build Time: 2025-10-07T09:41:25.295Z
   Build Mode: NORMAL
 
   ⚠️  AUTO-GENERATED FILE - DO NOT EDIT DIRECTLY
@@ -13,13 +13,255 @@
   <base target="_top">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <style>
-:root{
-  --bg:#0E0F10; --panel:#141516; --panel2:#1B1C1D; --border:#2A2B2C;
-  --txt:#F2F3F5; --sub:#B9C0CC; --accent:#19D27C; --err:#FF6464;
-  --radius:16px; --pad:18px;
+/* ============================================
+   Design Tokens - Focus Mode UI System
+   ============================================
 
-  --fs-base:24px; --fs-sm:19px; --fs-h:32px; --touch:64px;
+   Purpose: 생방송 자막 시스템을 위한 디자인 토큰
+   Based on: Think Hard 프레임워크 분석 결과
+   Target: 모바일 퍼스트 (393px~768px)
+
+   참고:
+   - 인지심리학 기반 (Hick's Law, Miller's Law, Fitts's Law)
+   - 생방송 환경 최적화 (스트레스 상황 대응)
+   - Apple HIG 터치 가이드라인 (최소 48px, 권장 64px)
+
+   ============================================ */
+
+/* ============================================
+   1. Color System
+   ============================================ */
+
+:root {
+  /* --- Background --- */
+  --color-bg: #0A0B0C;           /* 거의 검정 (눈 피로 최소화) */
+  --color-surface: #131416;      /* 카드/패널 배경 */
+  --color-surface-hover: #1C1D1F; /* hover 상태 */
+  --color-border: #2A2B2C;       /* 구분선 (기존 유지) */
+
+  /* --- Text --- */
+  --color-text-primary: #FFFFFF;   /* 주요 텍스트 */
+  --color-text-secondary: #A0A0A0; /* 보조 텍스트 */
+  --color-text-disabled: #606060;  /* 비활성 텍스트 */
+
+  /* --- Semantic Colors (신호등 체계) --- */
+  --color-success: #10B981;  /* 녹색 - 성공/완료 */
+  --color-warning: #F59E0B;  /* 주황 - 경고/주의 */
+  --color-error: #EF4444;    /* 빨강 - 에러/긴급 */
+  --color-info: #3B82F6;     /* 파랑 - 정보 */
+
+  /* --- Mode Colors (직관적 연상) --- */
+  --color-mode-pu: #3B82F6;      /* 파랑 - 일상 작업 (Player Update) */
+  --color-mode-elim: #EF4444;    /* 빨강 - 긴급 상황 (Eliminate) */
+  --color-mode-l3: #8B5CF6;      /* 보라 - 특별 작업 (Lower Third) */
+  --color-mode-lb: #F59E0B;      /* 주황 - 순위 표시 (Leaderboard) */
+
+  /* --- Accent --- */
+  --color-accent: #06B6D4;       /* 시안 - 포커 테마, 주요 액션 */
+
+  /* --- Legacy Aliases (기존 코드 호환) --- */
+  --bg: #0E0F10;           /* 기존 배경색 유지 */
+  --panel: #141516;        /* 기존 패널색 유지 */
+  --panel2: #1B1C1D;       /* 기존 패널2 유지 */
+  --border: #2A2B2C;       /* 기존 테두리 유지 */
+  --txt: #F2F3F5;          /* 기존 텍스트 유지 */
+  --sub: #B9C0CC;          /* 기존 보조 텍스트 유지 */
+  --accent: #19D27C;       /* 기존 accent 색상 유지 (녹색) */
+  --err: #FF6464;          /* 기존 에러 색상 유지 */
 }
+
+/* ============================================
+   2. Typography System
+   ============================================ */
+
+:root {
+  /* --- Type Scale (1.25 비율, Major Third) --- */
+  --text-xs: 12px;   /* 보조 정보 (최소 크기) */
+  --text-sm: 16px;   /* 레이블, iOS 줌 방지 최소값 */
+  --text-base: 20px; /* 본문 (읽기 편안한 크기) */
+  --text-lg: 25px;   /* 입력값 (명확한 가독성) */
+  --text-xl: 31px;   /* 제목 */
+  --text-2xl: 39px;  /* 미리보기 (최종 확인용) */
+
+  /* --- Line Height --- */
+  --leading-tight: 1.2;   /* 제목용 */
+  --leading-normal: 1.5;  /* 본문 (기본) */
+  --leading-loose: 1.8;   /* 긴 텍스트 */
+
+  /* --- Font Weight --- */
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-bold: 700;
+  --font-black: 900;
+
+  /* --- Legacy Aliases (기존 값 유지) --- */
+  --fs-xs: var(--text-xs);
+  --fs-sm: 19px;              /* 기존 값 유지 */
+  --fs-base: 24px;            /* 기존 값 유지 */
+  --fs-lg: var(--text-lg);
+  --fs-h: 32px;               /* 기존 값 유지 */
+}
+
+/* ============================================
+   3. Spacing System (8px 기준)
+   ============================================ */
+
+:root {
+  /* --- Base Unit: 8px --- */
+  --space-1: 4px;   /* 0.5x - 최소 간격 */
+  --space-2: 8px;   /* 1x - 기본 단위 */
+  --space-3: 12px;  /* 1.5x - 패딩/마진 */
+  --space-4: 16px;  /* 2x - 요소 간격 */
+  --space-6: 24px;  /* 3x - 섹션 구분 */
+  --space-8: 32px;  /* 4x - 큰 섹션 */
+  --space-12: 48px; /* 6x - 블록 구분 */
+  --space-16: 64px; /* 8x - 화면 구분 */
+
+  /* --- Component Spacing --- */
+  --touch-min: 48px;     /* Apple HIG 최소 터치 영역 */
+  --touch-target: 64px;  /* 권장 터치 영역 (생방송 환경) */
+  --input-height: 56px;  /* 입력 필드 높이 (편안한 터치) */
+
+  /* --- Safe Area (iOS) --- */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+
+  /* --- Legacy Aliases --- */
+  --radius: 16px;        /* 기존 border-radius */
+  --pad: 18px;           /* 기존 padding */
+  --touch: var(--touch-target); /* 기존 터치 영역 */
+}
+
+/* ============================================
+   4. Animation System
+   ============================================ */
+
+:root {
+  /* --- Duration --- */
+  --duration-instant: 0ms;      /* 즉시 (트랜지션 제거) */
+  --duration-fast: 100ms;       /* 빠른 피드백 (입력 반응) */
+  --duration-normal: 200ms;     /* 일반 전환 (버튼 hover) */
+  --duration-slow: 400ms;       /* 강조 전환 (모드 변경) */
+
+  /* --- Easing Functions --- */
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);          /* 가속 (시작 느림) */
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);         /* 감속 (끝 느림) */
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);    /* 가속+감속 */
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.27, 1.55); /* 튕김 효과 */
+}
+
+/* ============================================
+   5. Shadow System (Depth)
+   ============================================ */
+
+:root {
+  /* --- Elevation --- */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.2);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.3);
+
+  /* --- Focus/Active State --- */
+  --ring-offset: 2px;
+  --ring-width: 4px;
+  --ring-color: rgba(6, 182, 212, 0.3); /* accent 색상 기반 */
+}
+
+/* ============================================
+   6. Z-Index Scale (Stacking Order)
+   ============================================ */
+
+:root {
+  --z-base: 0;       /* 기본 레이어 */
+  --z-dropdown: 10;  /* 드롭다운 */
+  --z-sticky: 20;    /* 고정 헤더 */
+  --z-modal: 30;     /* 모달 배경 */
+  --z-toast: 40;     /* 토스트 메시지 */
+  --z-tooltip: 50;   /* 툴팁 (최상위) */
+}
+
+/* ============================================
+   7. Breakpoints (Mobile First)
+   ============================================ */
+
+:root {
+  --bp-mobile: 393px;   /* iPhone 14 Pro 기준 */
+  --bp-tablet: 768px;   /* iPad 기준 */
+  --bp-desktop: 1024px; /* Desktop 기준 */
+}
+
+/* ============================================
+   8. Component-Specific Tokens
+   ============================================ */
+
+:root {
+  /* --- Button --- */
+  --btn-height: var(--touch-target);      /* 64px */
+  --btn-padding-x: var(--space-6);        /* 24px */
+  --btn-font-size: var(--text-base);      /* 20px */
+  --btn-font-weight: var(--font-black);   /* 900 */
+  --btn-border-radius: var(--radius);     /* 16px */
+
+  /* --- Input --- */
+  --input-height: var(--touch-target);    /* 64px */
+  --input-padding-x: var(--pad);          /* 18px */
+  --input-font-size: var(--text-base);    /* 20px */
+  --input-border-radius: var(--radius);   /* 16px */
+  --input-border-width: 1px;
+
+  /* --- Toast --- */
+  --toast-min-width: 280px;
+  --toast-max-width: 90vw;
+  --toast-padding: 12px 16px;
+  --toast-border-radius: 14px;
+}
+
+/* ============================================
+   9. Utility Classes (Future Use)
+   ============================================ */
+
+/*
+  Note: 현재는 토큰만 정의, 실제 클래스는 v11에서 추가 예정
+
+  예시:
+  .text-primary { color: var(--color-text-primary); }
+  .bg-surface { background: var(--color-surface); }
+  .p-4 { padding: var(--space-4); }
+*/
+
+/* ============================================
+   10. Print / Dark Mode (Future Use)
+   ============================================ */
+
+/*
+  Note: 현재는 다크 모드 기본값만 제공
+  라이트 모드는 사용자 요청 시 추가 예정
+*/
+
+/* ============================================
+   11. Performance Optimizations
+   ============================================ */
+
+:root {
+  /* GPU 가속 활성화 */
+  --transform-gpu: translateZ(0);
+
+  /* 텍스트 렌더링 최적화 */
+  --text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+
+/* ============================================
+   Legacy Styles (Design Tokens 기반)
+   ============================================
+   Note: 색상/타이포/공간 변수는 design-tokens.css에 정의됨
+   여기서는 레이아웃/컴포넌트 스타일만 관리
+   ============================================ */
+
 html,body{background:var(--bg); color:var(--txt); font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; font-size:var(--fs-base); margin:0;}
 .wrap{max-width:980px;margin:0 auto;padding:14px 14px 120px;}
 header{display:flex;justify-content:space-between;align-items:flex-end;margin:8px 0 12px;}
@@ -290,11 +532,21 @@ const state = {
   batch: []          // 배치 전송용 배열
 };
 
-  function toast(msg, ok=true){
+  /**
+ * 토스트 메시지 표시
+ * @param {string} msg - 표시할 메시지
+ * @param {boolean} [ok=true] - 성공(true) 또는 에러(false) 스타일
+ */
+function toast(msg, ok=true){
   const t=document.getElementById('toast');
   t.textContent=msg; t.className='show'+(ok?'':' err');
   setTimeout(()=>t.className='', CONSTANTS.TOAST_DURATION);
 }
+
+/**
+ * 상태 텍스트 업데이트
+ * @param {string} s - 상태 메시지
+ */
 function setStatus(s){ document.getElementById('status').textContent=s; }
 
 /* ===== Sheet ID 저장/초기화 ===== */
@@ -333,7 +585,20 @@ function renderIdsHint(){
   document.getElementById('idsHint').textContent = `현재 사용 중: ${c} | ${t}`;
 }
 
-/* 인덱싱 */
+/**
+ * @typedef {Object} Player
+ * @property {string} room - Poker Room 이름
+ * @property {string} tname - Table Name
+ * @property {string} tno - Table Number
+ * @property {string} seat - 좌석 번호 (예: #1)
+ * @property {string} player - 플레이어 이름
+ * @property {string} nat - 국가 코드 (2글자, 예: US, KR)
+ */
+
+/**
+ * TYPE 시트 데이터를 인덱싱하여 state에 저장
+ * @param {Player[]} rows - TYPE 시트 행 데이터
+ */
 function indexTypeRows(rows){
   state.byRoom={}; state.byRoomTable={}; state.tableList=[];
   rows.forEach(r=>{
@@ -360,6 +625,12 @@ function indexTypeRows(rows){
     return Number(a.tno) - Number(b.tno);
   });
 }
+
+/**
+ * 좌석 번호 정규화 (#1, 1, "# 1" 모두 → #1)
+ * @param {string|number} s - 좌석 번호
+ * @returns {string} 정규화된 좌석 번호 (예: #1)
+ */
 function normSeat(s){
   const t = String(s||'').trim();
   if(!t) return '';
@@ -367,7 +638,12 @@ function normSeat(s){
   return '#'+n;
 }
 
-/* 플레이어 조회 헬퍼 함수 */
+/**
+ * Room+Table Key와 좌석 번호로 플레이어 찾기
+ * @param {string} key - "room|tno" 형식 (예: "PokerStars|7")
+ * @param {string} seat - 좌석 번호 (예: "#1")
+ * @returns {Player|null} 플레이어 객체 또는 null
+ */
 function findPlayerBySeat(key, seat) {
   if (!key || !seat) return null;
   const arr = state.byRoomTable[key] || [];
@@ -473,11 +749,27 @@ function rebuildFileName(){
   }).buildFileName(mode, hhmm, tno, nameForMode);
 }
 
-/* 숫자 유틸 */
+/**
+ * 문자열에서 숫자만 추출하여 정수로 변환
+ * @param {string|number} s - 입력 문자열 (예: "1,234", "$500")
+ * @returns {number} 정수 (실패 시 0)
+ * @example parseIntClean("1,234,000") // 1234000
+ */
 function parseIntClean(s){ const n = Number(String(s||'').replace(/[^0-9]/g,'')); return isNaN(n)?0:Math.round(n); }
+
+/**
+ * 숫자를 천 단위 콤마 형식으로 변환
+ * @param {number} n - 숫자
+ * @returns {string} 콤마 포함 문자열 (예: "1,234")
+ */
 function comma(n){ return Number(n||0).toLocaleString('en-US'); }
 
-/* 디바운싱 유틸 */
+/**
+ * 함수 호출을 지연시키는 디바운스 유틸리티
+ * @param {Function} func - 실행할 함수
+ * @param {number} delay - 지연 시간 (ms)
+ * @returns {Function} 디바운스된 함수
+ */
 function debounce(func, delay) {
   let timer;
   return (...args) => {
@@ -515,11 +807,21 @@ function buildLeaderboardList(){
   list.innerHTML = '';
 
   arr.forEach((r,i)=>{
-    const row = document.createElement('div'); row.className='lb-row';
-    row.innerHTML = `
-      <input class="lbName" value="${(r.player||'')}" />
-      <input class="lbAmt"  placeholder="칩스택(예: 4,190,000)" inputmode="numeric" />
-    `;
+    const row = document.createElement('div');
+    row.className='lb-row';
+
+    // XSS 방지: DOM API 사용
+    const nameInput = document.createElement('input');
+    nameInput.className = 'lbName';
+    nameInput.value = r.player || '';
+
+    const amtInput = document.createElement('input');
+    amtInput.className = 'lbAmt';
+    amtInput.placeholder = '칩스택(예: 4,190,000)';
+    amtInput.setAttribute('inputmode', 'numeric');
+
+    row.appendChild(nameInput);
+    row.appendChild(amtInput);
     list.appendChild(row);
   });
 
@@ -549,6 +851,12 @@ function buildLeaderboardList(){
   rebuildFileName();
 }
 
+/**
+ * 플레이어 이름을 "이니셜. 성" 형식으로 변환
+ * @param {string} full - 전체 이름 (예: "John Doe")
+ * @returns {string} 변환된 이름 (예: "J. DOE")
+ * @example nameToInitialLastUpper("John Doe") // "J. DOE"
+ */
 function nameToInitialLastUpper(full){
   const parts = String(full||'').trim().split(/\s+/);
   if(parts.length===0 || !parts[0]) return '';
@@ -557,7 +865,13 @@ function nameToInitialLastUpper(full){
   return last ? `${initial} ${last}` : initial;
 }
 
-// 숫자 → K/M 표기(블라인드 라벨용)
+/**
+ * 숫자를 K/M 단위로 포맷 (블라인드 라벨용)
+ * @param {string|number} nStr - 숫자 문자열
+ * @returns {string} K/M 포맷 (예: "50K", "2.5M")
+ * @example formatKM("50000") // "50K"
+ * @example formatKM("2500000") // "2.5M"
+ */
 function formatKM(nStr){
   const n = parseIntClean(nStr);
   const [divisor, suffix] = n >= 1_000_000 ? [1_000_000, 'M'] : [1_000, 'K'];
@@ -569,7 +883,10 @@ function formatKM(nStr){
   return `${formatted}${suffix}`;
 }
 
-/* 선택된 플레이어 정보 가져오기 */
+/**
+ * 현재 선택된 플레이어 정보 가져오기
+ * @returns {Player|null} 플레이어 객체 또는 null
+ */
 function getSelectedPlayer(){
   const key = document.getElementById('selRoomTable').value;
   const seat = document.getElementById('selSeat').value;
@@ -814,22 +1131,34 @@ function renderBatchList() {
     const div = document.createElement('div');
     div.style.cssText = 'background:var(--panel); padding:14px; border-radius:12px; display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; min-height:44px;';
 
-    div.innerHTML = `
-      <div style="flex:1; min-width:0;">
-        <div style="font-weight:600; font-size:0.95em;">
-          ${idx + 1}. ${item.seat} ${item.player}
-          <span style="color:var(--accent); margin-left:8px; font-size:0.85em;">[${item.mode}]</span>
-        </div>
-        <div class="muted" style="font-size:0.8em; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-          ${item.content.replace(/\n/g, ' · ').substring(0, 60)}...
-        </div>
-      </div>
-      <button class="btn ghost" data-idx="${idx}" style="padding:10px 16px; height:auto; font-size:0.85em; margin-left:10px; flex-shrink:0;">
-        삭제
-      </button>
-    `;
+    // XSS 방지: DOM API 사용
+    const contentDiv = document.createElement('div');
+    contentDiv.style.cssText = 'flex:1; min-width:0;';
 
-    div.querySelector('button').addEventListener('click', (e) => {
+    const titleDiv = document.createElement('div');
+    titleDiv.style.cssText = 'font-weight:600; font-size:0.95em;';
+    titleDiv.textContent = `${idx + 1}. ${item.seat} ${item.player} `;
+
+    const modeSpan = document.createElement('span');
+    modeSpan.style.cssText = 'color:var(--accent); margin-left:8px; font-size:0.85em;';
+    modeSpan.textContent = `[${item.mode}]`;
+    titleDiv.appendChild(modeSpan);
+
+    const previewDiv = document.createElement('div');
+    previewDiv.className = 'muted';
+    previewDiv.style.cssText = 'font-size:0.8em; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;';
+    previewDiv.textContent = item.content.replace(/\n/g, ' · ').substring(0, 60) + '...';
+
+    contentDiv.appendChild(titleDiv);
+    contentDiv.appendChild(previewDiv);
+
+    const btn = document.createElement('button');
+    btn.className = 'btn ghost';
+    btn.dataset.idx = idx;
+    btn.style.cssText = 'padding:10px 16px; height:auto; font-size:0.85em; margin-left:10px; flex-shrink:0;';
+    btn.textContent = '삭제';
+
+    btn.addEventListener('click', (e) => {
       const idx = parseInt(e.target.dataset.idx);
       state.batch.splice(idx, 1);
       renderBatchList();
@@ -837,6 +1166,9 @@ function renderBatchList() {
       updateSendButton();
       toast('항목 삭제됨', true);
     });
+
+    div.appendChild(contentDiv);
+    div.appendChild(btn);
 
     list.appendChild(div);
   });
