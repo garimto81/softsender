@@ -1,6 +1,6 @@
 <!--
-  Soft Content Sender v10.3.0
-  Build Time: 2025-10-07T09:41:25.295Z
+  Soft Content Sender v10.6.0
+  Build Time: 2025-10-07T11:07:53.496Z
   Build Mode: NORMAL
 
   ⚠️  AUTO-GENERATED FILE - DO NOT EDIT DIRECTLY
@@ -532,21 +532,11 @@ const state = {
   batch: []          // 배치 전송용 배열
 };
 
-  /**
- * 토스트 메시지 표시
- * @param {string} msg - 표시할 메시지
- * @param {boolean} [ok=true] - 성공(true) 또는 에러(false) 스타일
- */
-function toast(msg, ok=true){
+  function toast(msg, ok=true){
   const t=document.getElementById('toast');
   t.textContent=msg; t.className='show'+(ok?'':' err');
   setTimeout(()=>t.className='', CONSTANTS.TOAST_DURATION);
 }
-
-/**
- * 상태 텍스트 업데이트
- * @param {string} s - 상태 메시지
- */
 function setStatus(s){ document.getElementById('status').textContent=s; }
 
 /* ===== Sheet ID 저장/초기화 ===== */
@@ -585,20 +575,7 @@ function renderIdsHint(){
   document.getElementById('idsHint').textContent = `현재 사용 중: ${c} | ${t}`;
 }
 
-/**
- * @typedef {Object} Player
- * @property {string} room - Poker Room 이름
- * @property {string} tname - Table Name
- * @property {string} tno - Table Number
- * @property {string} seat - 좌석 번호 (예: #1)
- * @property {string} player - 플레이어 이름
- * @property {string} nat - 국가 코드 (2글자, 예: US, KR)
- */
-
-/**
- * TYPE 시트 데이터를 인덱싱하여 state에 저장
- * @param {Player[]} rows - TYPE 시트 행 데이터
- */
+/* 인덱싱 */
 function indexTypeRows(rows){
   state.byRoom={}; state.byRoomTable={}; state.tableList=[];
   rows.forEach(r=>{
@@ -625,12 +602,6 @@ function indexTypeRows(rows){
     return Number(a.tno) - Number(b.tno);
   });
 }
-
-/**
- * 좌석 번호 정규화 (#1, 1, "# 1" 모두 → #1)
- * @param {string|number} s - 좌석 번호
- * @returns {string} 정규화된 좌석 번호 (예: #1)
- */
 function normSeat(s){
   const t = String(s||'').trim();
   if(!t) return '';
@@ -638,12 +609,7 @@ function normSeat(s){
   return '#'+n;
 }
 
-/**
- * Room+Table Key와 좌석 번호로 플레이어 찾기
- * @param {string} key - "room|tno" 형식 (예: "PokerStars|7")
- * @param {string} seat - 좌석 번호 (예: "#1")
- * @returns {Player|null} 플레이어 객체 또는 null
- */
+/* 플레이어 조회 헬퍼 함수 */
 function findPlayerBySeat(key, seat) {
   if (!key || !seat) return null;
   const arr = state.byRoomTable[key] || [];
@@ -749,27 +715,11 @@ function rebuildFileName(){
   }).buildFileName(mode, hhmm, tno, nameForMode);
 }
 
-/**
- * 문자열에서 숫자만 추출하여 정수로 변환
- * @param {string|number} s - 입력 문자열 (예: "1,234", "$500")
- * @returns {number} 정수 (실패 시 0)
- * @example parseIntClean("1,234,000") // 1234000
- */
+/* 숫자 유틸 */
 function parseIntClean(s){ const n = Number(String(s||'').replace(/[^0-9]/g,'')); return isNaN(n)?0:Math.round(n); }
-
-/**
- * 숫자를 천 단위 콤마 형식으로 변환
- * @param {number} n - 숫자
- * @returns {string} 콤마 포함 문자열 (예: "1,234")
- */
 function comma(n){ return Number(n||0).toLocaleString('en-US'); }
 
-/**
- * 함수 호출을 지연시키는 디바운스 유틸리티
- * @param {Function} func - 실행할 함수
- * @param {number} delay - 지연 시간 (ms)
- * @returns {Function} 디바운스된 함수
- */
+/* 디바운싱 유틸 */
 function debounce(func, delay) {
   let timer;
   return (...args) => {
@@ -807,21 +757,11 @@ function buildLeaderboardList(){
   list.innerHTML = '';
 
   arr.forEach((r,i)=>{
-    const row = document.createElement('div');
-    row.className='lb-row';
-
-    // XSS 방지: DOM API 사용
-    const nameInput = document.createElement('input');
-    nameInput.className = 'lbName';
-    nameInput.value = r.player || '';
-
-    const amtInput = document.createElement('input');
-    amtInput.className = 'lbAmt';
-    amtInput.placeholder = '칩스택(예: 4,190,000)';
-    amtInput.setAttribute('inputmode', 'numeric');
-
-    row.appendChild(nameInput);
-    row.appendChild(amtInput);
+    const row = document.createElement('div'); row.className='lb-row';
+    row.innerHTML = `
+      <input class="lbName" value="${(r.player||'')}" />
+      <input class="lbAmt"  placeholder="칩스택(예: 4,190,000)" inputmode="numeric" />
+    `;
     list.appendChild(row);
   });
 
@@ -851,12 +791,6 @@ function buildLeaderboardList(){
   rebuildFileName();
 }
 
-/**
- * 플레이어 이름을 "이니셜. 성" 형식으로 변환
- * @param {string} full - 전체 이름 (예: "John Doe")
- * @returns {string} 변환된 이름 (예: "J. DOE")
- * @example nameToInitialLastUpper("John Doe") // "J. DOE"
- */
 function nameToInitialLastUpper(full){
   const parts = String(full||'').trim().split(/\s+/);
   if(parts.length===0 || !parts[0]) return '';
@@ -865,13 +799,7 @@ function nameToInitialLastUpper(full){
   return last ? `${initial} ${last}` : initial;
 }
 
-/**
- * 숫자를 K/M 단위로 포맷 (블라인드 라벨용)
- * @param {string|number} nStr - 숫자 문자열
- * @returns {string} K/M 포맷 (예: "50K", "2.5M")
- * @example formatKM("50000") // "50K"
- * @example formatKM("2500000") // "2.5M"
- */
+// 숫자 → K/M 표기(블라인드 라벨용)
 function formatKM(nStr){
   const n = parseIntClean(nStr);
   const [divisor, suffix] = n >= 1_000_000 ? [1_000_000, 'M'] : [1_000, 'K'];
@@ -883,10 +811,7 @@ function formatKM(nStr){
   return `${formatted}${suffix}`;
 }
 
-/**
- * 현재 선택된 플레이어 정보 가져오기
- * @returns {Player|null} 플레이어 객체 또는 null
- */
+/* 선택된 플레이어 정보 가져오기 */
 function getSelectedPlayer(){
   const key = document.getElementById('selRoomTable').value;
   const seat = document.getElementById('selSeat').value;
@@ -1131,34 +1056,22 @@ function renderBatchList() {
     const div = document.createElement('div');
     div.style.cssText = 'background:var(--panel); padding:14px; border-radius:12px; display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; min-height:44px;';
 
-    // XSS 방지: DOM API 사용
-    const contentDiv = document.createElement('div');
-    contentDiv.style.cssText = 'flex:1; min-width:0;';
+    div.innerHTML = `
+      <div style="flex:1; min-width:0;">
+        <div style="font-weight:600; font-size:0.95em;">
+          ${idx + 1}. ${item.seat} ${item.player}
+          <span style="color:var(--accent); margin-left:8px; font-size:0.85em;">[${item.mode}]</span>
+        </div>
+        <div class="muted" style="font-size:0.8em; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+          ${item.content.replace(/\n/g, ' · ').substring(0, 60)}...
+        </div>
+      </div>
+      <button class="btn ghost" data-idx="${idx}" style="padding:10px 16px; height:auto; font-size:0.85em; margin-left:10px; flex-shrink:0;">
+        삭제
+      </button>
+    `;
 
-    const titleDiv = document.createElement('div');
-    titleDiv.style.cssText = 'font-weight:600; font-size:0.95em;';
-    titleDiv.textContent = `${idx + 1}. ${item.seat} ${item.player} `;
-
-    const modeSpan = document.createElement('span');
-    modeSpan.style.cssText = 'color:var(--accent); margin-left:8px; font-size:0.85em;';
-    modeSpan.textContent = `[${item.mode}]`;
-    titleDiv.appendChild(modeSpan);
-
-    const previewDiv = document.createElement('div');
-    previewDiv.className = 'muted';
-    previewDiv.style.cssText = 'font-size:0.8em; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;';
-    previewDiv.textContent = item.content.replace(/\n/g, ' · ').substring(0, 60) + '...';
-
-    contentDiv.appendChild(titleDiv);
-    contentDiv.appendChild(previewDiv);
-
-    const btn = document.createElement('button');
-    btn.className = 'btn ghost';
-    btn.dataset.idx = idx;
-    btn.style.cssText = 'padding:10px 16px; height:auto; font-size:0.85em; margin-left:10px; flex-shrink:0;';
-    btn.textContent = '삭제';
-
-    btn.addEventListener('click', (e) => {
+    div.querySelector('button').addEventListener('click', (e) => {
       const idx = parseInt(e.target.dataset.idx);
       state.batch.splice(idx, 1);
       renderBatchList();
@@ -1166,9 +1079,6 @@ function renderBatchList() {
       updateSendButton();
       toast('항목 삭제됨', true);
     });
-
-    div.appendChild(contentDiv);
-    div.appendChild(btn);
 
     list.appendChild(div);
   });
