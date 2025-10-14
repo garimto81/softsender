@@ -37,10 +37,10 @@ function rebuildPreview(){
       if (els.selPrize.value === 'prize') {
         const place = (document.getElementById('prizePlace').value || '').trim();
         const amount = (document.getElementById('prizeAmount').value || '').trim();
-        const prizeText = place && amount ? `ELIMINATED IN ${place}TH PLACE ($${amount})` : 'ELIMINATED';
-        body = `${name} / ${country}\n${prizeText}`;
+        const prizeText = place && amount ? `${place}TH PLACE ($${amount})` : '';
+        body = prizeText ? `${name} / ${country}\n${prizeText}` : `${name} / ${country}`;
       } else {
-        body = `${name} / ${country}\nELIMINATED`;
+        body = `${name} / ${country}`;
       }
     }
   }else if(mode===CONSTANTS.MODES.L3){
@@ -103,10 +103,10 @@ function generateCurrentPreview() {
       if (els.selPrize.value === 'prize') {
         const place = (document.getElementById('prizePlace').value || '').trim();
         const amount = (document.getElementById('prizeAmount').value || '').trim();
-        const prizeText = place && amount ? `ELIMINATED IN ${place}TH PLACE ($${amount})` : 'ELIMINATED';
-        body = `${name} / ${country}\n${prizeText}`;
+        const prizeText = place && amount ? `${place}TH PLACE ($${amount})` : '';
+        body = prizeText ? `${name} / ${country}\n${prizeText}` : `${name} / ${country}`;
       } else {
-        body = `${name} / ${country}\nELIMINATED`;
+        body = `${name} / ${country}`;
       }
     }
   } else if (mode === CONSTANTS.MODES.L3) {

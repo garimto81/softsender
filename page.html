@@ -1,6 +1,6 @@
 <!--
-  Soft Content Sender v10.8.0
-  Build Time: 2025-10-14T12:34:23.150Z
+  Soft Content Sender v10.8.2
+  Build Time: 2025-10-14T20:00:03.727Z
   Build Mode: NORMAL
 
   ⚠️  AUTO-GENERATED FILE - DO NOT EDIT DIRECTLY
@@ -939,10 +939,10 @@ function rebuildPreview(){
       if (els.selPrize.value === 'prize') {
         const place = (document.getElementById('prizePlace').value || '').trim();
         const amount = (document.getElementById('prizeAmount').value || '').trim();
-        const prizeText = place && amount ? `ELIMINATED IN ${place}TH PLACE (${amount})` : 'ELIMINATED';
-        body = `${name} / ${country}\n${prizeText}`;
+        const prizeText = place && amount ? `${place}TH PLACE (${amount})` : '';
+        body = prizeText ? `${name} / ${country}\n${prizeText}` : `${name} / ${country}`;
       } else {
-        body = `${name} / ${country}\nELIMINATED`;
+        body = `${name} / ${country}`;
       }
     }
   }else if(mode===CONSTANTS.MODES.L3){
@@ -1005,10 +1005,10 @@ function generateCurrentPreview() {
       if (els.selPrize.value === 'prize') {
         const place = (document.getElementById('prizePlace').value || '').trim();
         const amount = (document.getElementById('prizeAmount').value || '').trim();
-        const prizeText = place && amount ? `ELIMINATED IN ${place}TH PLACE (${amount})` : 'ELIMINATED';
-        body = `${name} / ${country}\n${prizeText}`;
+        const prizeText = place && amount ? `${place}TH PLACE (${amount})` : '';
+        body = prizeText ? `${name} / ${country}\n${prizeText}` : `${name} / ${country}`;
       } else {
-        body = `${name} / ${country}\nELIMINATED`;
+        body = `${name} / ${country}`;
       }
     }
   } else if (mode === CONSTANTS.MODES.L3) {
