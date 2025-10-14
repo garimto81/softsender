@@ -25,6 +25,20 @@ function saveIds(){
   toast('ID 저장 완료');
   reloadSheets();
 }
+
+// 자동 저장 함수 (입력 필드 변경 시)
+function autoSaveIds(){
+  const cue = document.getElementById('cueId').value.trim();
+  const type= document.getElementById('typeId').value.trim();
+
+  // 입력값이 있으면 localStorage에 저장
+  if (cue) localStorage.setItem(LS_KEYS.CUE, cue); else localStorage.removeItem(LS_KEYS.CUE);
+  if (type) localStorage.setItem(LS_KEYS.TYPE, type); else localStorage.removeItem(LS_KEYS.TYPE);
+
+  state.cueId = cue;
+  state.typeId = type;
+  renderIdsHint();
+}
 function clearIds(){
   localStorage.removeItem(LS_KEYS.CUE);
   localStorage.removeItem(LS_KEYS.TYPE);

@@ -12,6 +12,11 @@ function init(){
   document.getElementById('btnSaveIds').onclick = saveIds;
   document.getElementById('btnClearIds').onclick = clearIds;
 
+  // Sheet ID 입력 필드 자동 저장 (debounce 적용)
+  const debouncedAutoSave = debounce(autoSaveIds, 1000); // 1초 대기 후 저장
+  document.getElementById('cueId').addEventListener('input', debouncedAutoSave);
+  document.getElementById('typeId').addEventListener('input', debouncedAutoSave);
+
   document.getElementById('tabPU').onclick   = ()=>setMode(CONSTANTS.MODES.PU);
   document.getElementById('tabELIM').onclick = ()=>setMode(CONSTANTS.MODES.ELIM);
   document.getElementById('tabL3').onclick   = ()=>setMode(CONSTANTS.MODES.L3);
