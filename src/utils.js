@@ -121,6 +121,15 @@ function fillSeats(){
     const o = document.createElement('option');
     o.value = s;
 
+    // 디버깅: KeyPlayer 필드 확인
+    if (player) {
+      console.log(`🎯 좌석 ${s}:`, {
+        player: player.player,
+        keyPlayer: player.keyPlayer,
+        rawData: player
+      });
+    }
+
     // KeyPlayer인 경우 ⭐ 표시 추가
     const keyPlayerIcon = player?.keyPlayer ? ' ⭐' : '';
     o.textContent = `${s} - ${player?.player || ''}${keyPlayerIcon}`;
@@ -325,7 +334,20 @@ function reloadSheets(){
   }).getTimeOptions(state.cueId || null);
 
   google.script.run.withSuccessHandler(res=>{
-    if(res?.ok){ state.typeRows = res.rows||[]; indexTypeRows(state.typeRows); fillRoomTables(); }
+    if(res?.ok){
+      state.typeRows = res.rows||[];
+
+      // 디버깅: KeyPlayer 데이터 확인
+      console.log('📊 Type 탭 데이터 로드 완료:', res.rows?.length, '행');
+      const keyPlayers = res.rows?.filter(r => r.keyPlayer) || [];
+      console.log('⭐ 키 플레이어 발견:', keyPlayers.length, '명');
+      keyPlayers.forEach(p => {
+        console.log(`  - ${p.seat} ${p.player} (${p.room} Table ${p.tno})`);
+      });
+
+      indexTypeRows(state.typeRows);
+      fillRoomTables();
+    }
     else toast('Type 탭 로딩 실패: '+(res?.error||'unknown'), false);
   }).getTypeRows(state.typeId || null);
 }
