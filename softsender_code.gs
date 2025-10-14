@@ -51,14 +51,14 @@ function getTypeRows(typeIdOverride) {
     const iPlayer    = idx('PlayerName');
     const iNat       = idx('Nationality');
     const iChipCount = idx('ChipCount');
-    const iKeyPlayer = idx('KeyPlayer');
+    const iKeyPlayer = 10; // K열 고정 (0부터 시작: A=0, B=1, ..., K=10)
 
-    // 디버깅: KeyPlayer 컬럼 인덱스 확인
-    Logger.log('⭐ KeyPlayer 컬럼 인덱스:', iKeyPlayer);
-    if (iKeyPlayer >= 0) {
-      Logger.log('⭐ KeyPlayer 컬럼명:', headers[iKeyPlayer]);
+    // 디버깅: KeyPlayer 컬럼 확인
+    Logger.log('⭐ KeyPlayer 컬럼: K열 (인덱스 10) 고정');
+    if (headers.length > iKeyPlayer) {
+      Logger.log(`⭐ K열 헤더명: "${headers[iKeyPlayer]}"`);
     } else {
-      Logger.log('❌ KeyPlayer 컬럼을 찾을 수 없음!');
+      Logger.log('❌ 경고: K열이 존재하지 않음! (헤더 개수:', headers.length + ')');
     }
 
     // 필수 컬럼 검증 (기본 필드만)
@@ -67,12 +67,13 @@ function getTypeRows(typeIdOverride) {
     }
 
     const rows = values.slice(1).map((r, idx) => {
-      const keyPlayerValue = iKeyPlayer >= 0 ? String(r[iKeyPlayer] || 'FALSE').trim().toUpperCase() : 'FALSE';
+      const rawValue = r[iKeyPlayer]; // K열 원본값
+      const keyPlayerValue = String(rawValue || '').trim().toUpperCase();
       const isKeyPlayer = keyPlayerValue === 'TRUE';
 
-      // 디버깅: 첫 3개 행만 KeyPlayer 값 출력
-      if (idx < 3) {
-        Logger.log(`🔍 행 ${idx + 2}: KeyPlayer 원본값="${r[iKeyPlayer]}", 변환값="${keyPlayerValue}", 결과=${isKeyPlayer}`);
+      // 디버깅: 첫 5개 행의 KeyPlayer 값 상세 출력
+      if (idx < 5) {
+        Logger.log(`🔍 행 ${idx + 2} [${r[iPlayer]}]: K열 원본="${rawValue}" (타입=${typeof rawValue}), 변환="${keyPlayerValue}", 결과=${isKeyPlayer}`);
       }
 
       return {
