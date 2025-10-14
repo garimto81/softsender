@@ -37,6 +37,7 @@ function addToBatch() {
     player: player?.player || 'Unknown',
     seat: player?.seat || '',
     nat: player?.nat || '',
+    keyPlayer: player?.keyPlayer || false,
     content: preview
   });
 
@@ -64,10 +65,12 @@ function renderBatchList() {
     const div = document.createElement('div');
     div.style.cssText = 'background:var(--panel); padding:14px; border-radius:12px; display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; min-height:44px;';
 
+    const keyPlayerIcon = item.keyPlayer ? ' ⭐' : '';
+
     div.innerHTML = `
       <div style="flex:1; min-width:0;">
         <div style="font-weight:600; font-size:0.95em;">
-          ${idx + 1}. ${item.seat} ${item.player}
+          ${idx + 1}. ${item.seat} ${item.player}${keyPlayerIcon}
           <span style="color:var(--accent); margin-left:8px; font-size:0.85em;">[${item.mode}]</span>
         </div>
         <div class="muted" style="font-size:0.8em; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">

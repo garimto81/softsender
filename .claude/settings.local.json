@@ -7,7 +7,11 @@
       "Bash(move docsSeats.csv docssamplesSeats.csv)",
       "Bash(mv:*)",
       "Bash(rm:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\ndocs: 프로젝트 구조 정리 및 문서 재조직 (v10.7)\n\n📁 구조 개선:\n- docs/samples/ 생성 - CSV 샘플 데이터 이동\n- archive/ 생성 - 구버전 문서 보관\n\n📦 파일 이동:\n- Players.csv, Seats.csv → docs/samples/\n- CODE_REVIEW_v10.1.md, POST_MORTEM_v11.md → archive/\n\n🗑️ 중복 제거:\n- BUILD_STRATEGY.md 삭제 (BUILD.md와 중복)\n- PLAN.md 삭제 (용도 불명)\n\n📝 문서 업데이트:\n- README.md - 프로젝트 구조 최신화, 문서 링크 업데이트\n\n✨ 결과:\n- 문서 수 45% 감소 (11개 → 6개 + 2개 아카이브)\n- 명확한 폴더 구조 (samples, archive 분리)\n- 유지보수성 향상\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git config:*)",
+      "Bash(git push:*)",
+      "Bash(npm run build:*)"
     ],
     "deny": [],
     "ask": []
