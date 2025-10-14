@@ -50,22 +50,6 @@ function rebuildPreview(){
       const name = (player.player || '').toUpperCase();
       body = `프로필 자막\n${name}`;
     }
-  }else if(mode===CONSTANTS.MODES.LEADERBOARD){
-    const level = (els.lbLevel.value||'').trim();
-    const sb    = comma(parseIntClean(els.lbSB.value));
-    const bb    = comma(parseIntClean(els.lbBB.value));
-    const ante  = comma(parseIntClean(els.lbAnte.value));
-    const rows = [];
-    document.querySelectorAll('#lbList .lb-row').forEach(r=>{
-      const name = r.querySelector('.lbName').value;
-      const amt  = r.querySelector('.lbAmt').value;
-      const chips = parseIntClean(amt);
-      if(chips>0) rows.push({name, amt: comma(chips)});
-    });
-    rows.sort((a,b)=>parseInt(b.amt.replace(/,/g,'')) - parseInt(a.amt.replace(/,/g,'')));
-    const lines = rows.map(o => `${nameToInitialLastUpper(o.name)}    ${o.amt}`.toUpperCase());
-    const footer = `LV ${String(level||'').toUpperCase()} | BLINDS ${formatKM(sb)} / ${formatKM(bb)} - ${formatKM(ante)}`;
-    body = lines.join('\n') + (lines.length?'\n\n':'') + footer;
   }
   els.preview.value = body;
 }
@@ -76,11 +60,7 @@ function generateCurrentPreview() {
   const els = {
     stackAmt: document.getElementById('stackAmt'),
     stackBB: document.getElementById('stackBB'),
-    selPrize: document.getElementById('selPrize'),
-    lbLevel: document.getElementById('lbLevel'),
-    lbSB: document.getElementById('lbSB'),
-    lbBB: document.getElementById('lbBB'),
-    lbAnte: document.getElementById('lbAnte')
+    selPrize: document.getElementById('selPrize')
   };
 
   let body = '';
@@ -115,22 +95,6 @@ function generateCurrentPreview() {
       const name = (player.player || '').toUpperCase();
       body = `프로필 자막\n${name}`;
     }
-  } else if (mode === CONSTANTS.MODES.LEADERBOARD) {
-    const level = (els.lbLevel.value || '').trim();
-    const sb = comma(parseIntClean(els.lbSB.value));
-    const bb = comma(parseIntClean(els.lbBB.value));
-    const ante = comma(parseIntClean(els.lbAnte.value));
-    const rows = [];
-    document.querySelectorAll('#lbList .lb-row').forEach(r => {
-      const name = r.querySelector('.lbName').value;
-      const amt = r.querySelector('.lbAmt').value;
-      const chips = parseIntClean(amt);
-      if (chips > 0) rows.push({ name, amt: comma(chips) });
-    });
-    rows.sort((a, b) => parseInt(b.amt.replace(/,/g, '')) - parseInt(a.amt.replace(/,/g, '')));
-    const lines = rows.map(o => `${nameToInitialLastUpper(o.name)}    ${o.amt}`.toUpperCase());
-    const footer = `LV ${String(level || '').toUpperCase()} | BLINDS ${formatKM(sb)} / ${formatKM(bb)} - ${formatKM(ante)}`;
-    body = lines.join('\n') + (lines.length ? '\n\n' : '') + footer;
   }
 
   return body;

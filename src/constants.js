@@ -6,8 +6,7 @@ const CONSTANTS = {
   MODES: {
     PU: 'PU',
     ELIM: 'ELIM',
-    L3: 'L3',
-    LEADERBOARD: 'LEADERBOARD'
+    L3: 'L3'
   },
   DISPLAY: {
     GRID: 'grid',

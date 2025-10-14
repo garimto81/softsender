@@ -156,7 +156,6 @@ function fillSeats(){
   selSeat.selectedIndex = idx >= 0 ? idx + CONSTANTS.DEFAULT_SEAT_INDEX : (seats.length > 0 ? CONSTANTS.DEFAULT_SEAT_INDEX : 0);
 
   applyPickFromSeat();
-  if(state.mode===CONSTANTS.MODES.LEADERBOARD) buildLeaderboardList();
   rebuildFileName();
 }
 
@@ -261,74 +260,6 @@ function computeBB(){
   const res = (amt>0 && bb>0) ? Math.round(amt / bb) : '';
   document.getElementById('stackBB').value = res || '';
   document.getElementById('stackBBView').value = res ? `${res}BB` : '';
-}
-
-/* LEADERBOARD */
-let lbListListenerAttached = false;
-let lbTableLabelListenerAttached = false;
-
-function buildLeaderboardList(){
-  const key = document.getElementById('selRoomTable').value;
-  if (!key) return;
-
-  const arr = (state.byRoomTable[key]||[]).slice()
-                .sort((a,b)=>Number(a.seat.replace('#',''))-Number(b.seat.replace('#','')));
-  const list = document.getElementById('lbList');
-  list.innerHTML = '';
-
-  arr.forEach((r,i)=>{
-    const row = document.createElement('div'); row.className='lb-row';
-    row.innerHTML = `
-      <input class="lbName" value="${(r.player||'')}" />
-      <input class="lbAmt"  placeholder="칩스택(예: 4,190,000)" inputmode="numeric" />
-    `;
-    list.appendChild(row);
-  });
-
-  // 이벤트 위임으로 한 번만 등록
-  if (!lbListListenerAttached) {
-    list.addEventListener('input', (e) => {
-      if (e.target.classList.contains('lbAmt')) {
-        formatInputWithComma(e.target);
-        rebuildPreview();
-      } else if (e.target.classList.contains('lbName')) {
-        rebuildPreview();
-      }
-    });
-    lbListListenerAttached = true;
-  }
-
-  const tno = key.split('|')[1];
-  const tlabel = document.getElementById('lbTableLabel');
-  if(!tlabel.value) tlabel.value = 'Table'+tno;
-
-  if (!lbTableLabelListenerAttached) {
-    tlabel.addEventListener('input', rebuildFileName);
-    lbTableLabelListenerAttached = true;
-  }
-
-  rebuildPreview();
-  rebuildFileName();
-}
-
-function nameToInitialLastUpper(full){
-  const parts = String(full||'').trim().split(/\s+/);
-  if(parts.length===0 || !parts[0]) return '';
-  const initial = (parts[0][0]||'').toUpperCase()+'.';
-  const last = parts.slice(1).join(' ').toUpperCase();
-  return last ? `${initial} ${last}` : initial;
-}
-
-// 숫자 → K/M 표기(블라인드 라벨용)
-function formatKM(nStr){
-  const n = parseIntClean(nStr);
-  const [divisor, suffix] = n >= 1_000_000 ? [1_000_000, 'M'] : [1_000, 'K'];
-
-  const formatted = (n / divisor).toFixed(2)
-    .replace(/\.0+$/,'')
-    .replace(/(\.\d)0$/,'$1');
-
-  return `${formatted}${suffix}`;
 }
 
 /* 선택된 플레이어 정보 가져오기 */

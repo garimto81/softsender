@@ -1,6 +1,6 @@
 <!--
-  Soft Content Sender v10.8.2
-  Build Time: 2025-10-14T20:00:03.727Z
+  Soft Content Sender v10.9.0
+  Build Time: 2025-10-14T20:21:58.828Z
   Build Mode: NORMAL
 
   ⚠️  AUTO-GENERATED FILE - DO NOT EDIT DIRECTLY
@@ -352,7 +352,7 @@ details[open] > summary {
     <div class="row two">
       <div class="field">
         <label>파일명(전송 전 수정 가능) — 형식: <b>HHmm_name_mode</b></label>
-        <input id="fileName" placeholder="예: 1742_John_Doe_ELIM / 1742_Table7_LEADERBOARD" />
+        <input id="fileName" placeholder="예: 1742_John_Doe_ELIM" />
       </div>
       <div class="field">
         <label>모드</label>
@@ -360,7 +360,6 @@ details[open] > summary {
           <button id="tabPU" class="active">스택 업데이트(PU)</button>
           <button id="tabELIM">탈락 정보(ELIM)</button>
           <button id="tabL3">프로필 자막(L3)</button>
-          <button id="tabLB">리더보드(LEADERBOARD)</button>
         </div>
       </div>
     </div>
@@ -429,38 +428,6 @@ details[open] > summary {
     <p class="muted">"프로필 자막" + 이름 2줄이 J셀에 추가됩니다.</p>
   </section>
 
-  <!-- LEADERBOARD -->
-  <section id="panelLB" class="field" style="display:none;">
-    <div class="row two">
-      <div class="field">
-        <label>Level</label>
-        <input id="lbLevel" placeholder="예: 15" inputmode="numeric" />
-      </div>
-      <div class="field">
-        <label>Table Label (파일명용)</label>
-        <input id="lbTableLabel" placeholder="예: Table7" />
-      </div>
-    </div>
-    <div class="row three">
-      <div class="field">
-        <label>SB</label>
-        <input id="lbSB" placeholder="예: 25000" inputmode="numeric" />
-      </div>
-      <div class="field">
-        <label>BB</label>
-        <input id="lbBB" placeholder="예: 50000" inputmode="numeric" />
-      </div>
-      <div class="field">
-        <label>ANTE</label>
-        <input id="lbAnte" placeholder="예: 50000" inputmode="numeric" />
-      </div>
-    </div>
-
-    <div class="field">
-      <label>플레이어 칩스택 입력(이름 자동 로드, 필요시 수정)</label>
-      <div id="lbList" class="lb-list"></div>
-    </div>
-  </section>
 
   <!-- 액션 버튼 (입력 직후 바로 처리) -->
   <section class="field" style="display:flex;gap:12px;justify-content:flex-end;align-items:center;">
@@ -509,8 +476,7 @@ const CONSTANTS = {
   MODES: {
     PU: 'PU',
     ELIM: 'ELIM',
-    L3: 'L3',
-    LEADERBOARD: 'LEADERBOARD'
+    L3: 'L3'
   },
   DISPLAY: {
     GRID: 'grid',
@@ -690,7 +656,6 @@ function fillSeats(){
   selSeat.selectedIndex = idx >= 0 ? idx + CONSTANTS.DEFAULT_SEAT_INDEX : (seats.length > 0 ? CONSTANTS.DEFAULT_SEAT_INDEX : 0);
 
   applyPickFromSeat();
-  if(state.mode===CONSTANTS.MODES.LEADERBOARD) buildLeaderboardList();
   rebuildFileName();
 }
 
@@ -797,74 +762,6 @@ function computeBB(){
   document.getElementById('stackBBView').value = res ? `${res}BB` : '';
 }
 
-/* LEADERBOARD */
-let lbListListenerAttached = false;
-let lbTableLabelListenerAttached = false;
-
-function buildLeaderboardList(){
-  const key = document.getElementById('selRoomTable').value;
-  if (!key) return;
-
-  const arr = (state.byRoomTable[key]||[]).slice()
-                .sort((a,b)=>Number(a.seat.replace('#',''))-Number(b.seat.replace('#','')));
-  const list = document.getElementById('lbList');
-  list.innerHTML = '';
-
-  arr.forEach((r,i)=>{
-    const row = document.createElement('div'); row.className='lb-row';
-    row.innerHTML = `
-      <input class="lbName" value="${(r.player||'')}" />
-      <input class="lbAmt"  placeholder="칩스택(예: 4,190,000)" inputmode="numeric" />
-    `;
-    list.appendChild(row);
-  });
-
-  // 이벤트 위임으로 한 번만 등록
-  if (!lbListListenerAttached) {
-    list.addEventListener('input', (e) => {
-      if (e.target.classList.contains('lbAmt')) {
-        formatInputWithComma(e.target);
-        rebuildPreview();
-      } else if (e.target.classList.contains('lbName')) {
-        rebuildPreview();
-      }
-    });
-    lbListListenerAttached = true;
-  }
-
-  const tno = key.split('|')[1];
-  const tlabel = document.getElementById('lbTableLabel');
-  if(!tlabel.value) tlabel.value = 'Table'+tno;
-
-  if (!lbTableLabelListenerAttached) {
-    tlabel.addEventListener('input', rebuildFileName);
-    lbTableLabelListenerAttached = true;
-  }
-
-  rebuildPreview();
-  rebuildFileName();
-}
-
-function nameToInitialLastUpper(full){
-  const parts = String(full||'').trim().split(/\s+/);
-  if(parts.length===0 || !parts[0]) return '';
-  const initial = (parts[0][0]||'').toUpperCase()+'.';
-  const last = parts.slice(1).join(' ').toUpperCase();
-  return last ? `${initial} ${last}` : initial;
-}
-
-// 숫자 → K/M 표기(블라인드 라벨용)
-function formatKM(nStr){
-  const n = parseIntClean(nStr);
-  const [divisor, suffix] = n >= 1_000_000 ? [1_000_000, 'M'] : [1_000, 'K'];
-
-  const formatted = (n / divisor).toFixed(2)
-    .replace(/\.0+$/,'')
-    .replace(/(\.\d)0$/,'$1');
-
-  return `${formatted}${suffix}`;
-}
-
 /* 선택된 플레이어 정보 가져오기 */
 function getSelectedPlayer(){
   const key = document.getElementById('selRoomTable').value;
@@ -952,22 +849,6 @@ function rebuildPreview(){
       const name = (player.player || '').toUpperCase();
       body = `프로필 자막\n${name}`;
     }
-  }else if(mode===CONSTANTS.MODES.LEADERBOARD){
-    const level = (els.lbLevel.value||'').trim();
-    const sb    = comma(parseIntClean(els.lbSB.value));
-    const bb    = comma(parseIntClean(els.lbBB.value));
-    const ante  = comma(parseIntClean(els.lbAnte.value));
-    const rows = [];
-    document.querySelectorAll('#lbList .lb-row').forEach(r=>{
-      const name = r.querySelector('.lbName').value;
-      const amt  = r.querySelector('.lbAmt').value;
-      const chips = parseIntClean(amt);
-      if(chips>0) rows.push({name, amt: comma(chips)});
-    });
-    rows.sort((a,b)=>parseInt(b.amt.replace(/,/g,'')) - parseInt(a.amt.replace(/,/g,'')));
-    const lines = rows.map(o => `${nameToInitialLastUpper(o.name)}    ${o.amt}`.toUpperCase());
-    const footer = `LV ${String(level||'').toUpperCase()} | BLINDS ${formatKM(sb)} / ${formatKM(bb)} - ${formatKM(ante)}`;
-    body = lines.join('\n') + (lines.length?'\n\n':'') + footer;
   }
   els.preview.value = body;
 }
@@ -978,11 +859,7 @@ function generateCurrentPreview() {
   const els = {
     stackAmt: document.getElementById('stackAmt'),
     stackBB: document.getElementById('stackBB'),
-    selPrize: document.getElementById('selPrize'),
-    lbLevel: document.getElementById('lbLevel'),
-    lbSB: document.getElementById('lbSB'),
-    lbBB: document.getElementById('lbBB'),
-    lbAnte: document.getElementById('lbAnte')
+    selPrize: document.getElementById('selPrize')
   };
 
   let body = '';
@@ -1017,22 +894,6 @@ function generateCurrentPreview() {
       const name = (player.player || '').toUpperCase();
       body = `프로필 자막\n${name}`;
     }
-  } else if (mode === CONSTANTS.MODES.LEADERBOARD) {
-    const level = (els.lbLevel.value || '').trim();
-    const sb = comma(parseIntClean(els.lbSB.value));
-    const bb = comma(parseIntClean(els.lbBB.value));
-    const ante = comma(parseIntClean(els.lbAnte.value));
-    const rows = [];
-    document.querySelectorAll('#lbList .lb-row').forEach(r => {
-      const name = r.querySelector('.lbName').value;
-      const amt = r.querySelector('.lbAmt').value;
-      const chips = parseIntClean(amt);
-      if (chips > 0) rows.push({ name, amt: comma(chips) });
-    });
-    rows.sort((a, b) => parseInt(b.amt.replace(/,/g, '')) - parseInt(a.amt.replace(/,/g, '')));
-    const lines = rows.map(o => `${nameToInitialLastUpper(o.name)}    ${o.amt}`.toUpperCase());
-    const footer = `LV ${String(level || '').toUpperCase()} | BLINDS ${formatKM(sb)} / ${formatKM(bb)} - ${formatKM(ante)}`;
-    body = lines.join('\n') + (lines.length ? '\n\n' : '') + footer;
   }
 
   return body;
@@ -1075,8 +936,8 @@ function updateSendButton() {
     batchSection.style.display = 'none';
   }
 
-  // 배치 추가 버튼은 LEADERBOARD 모드가 아닐 때 항상 표시
-  btnAddToBatch.style.display = (state.mode === CONSTANTS.MODES.LEADERBOARD) ? 'none' : 'block';
+  // 배치 추가 버튼 항상 표시
+  btnAddToBatch.style.display = 'block';
 }
 
 // 배치에 추가
@@ -1270,14 +1131,6 @@ function sendSingle() {
       toast('칩스택/빅블을 입력하세요.', false); return;
     }
   }
-  if(state.mode===CONSTANTS.MODES.LEADERBOARD){
-    const ok = !!document.getElementById('lbLevel').value.trim()
-      && parseIntClean(document.getElementById('lbSB').value)>0
-      && parseIntClean(document.getElementById('lbBB').value)>0
-      && parseIntClean(document.getElementById('lbAnte').value)>0
-      && Array.from(document.querySelectorAll('#lbList .lbAmt')).some(i=>parseIntClean(i.value)>0);
-    if(!ok){ toast('레벨/SB/BB/ANTE 및 칩스택을 입력하세요.', false); return; }
-  }
   if(state.mode===CONSTANTS.MODES.ELIM){
     const prizeValue = document.getElementById('selPrize').value;
     if(prizeValue === 'prize'){
@@ -1316,28 +1169,21 @@ function setMode(m){
   document.getElementById('tabPU').classList.toggle('active', m===CONSTANTS.MODES.PU);
   document.getElementById('tabELIM').classList.toggle('active', m===CONSTANTS.MODES.ELIM);
   document.getElementById('tabL3').classList.toggle('active', m===CONSTANTS.MODES.L3);
-  document.getElementById('tabLB').classList.toggle('active', m===CONSTANTS.MODES.LEADERBOARD);
 
   document.getElementById('panelPU').style.display   = (m===CONSTANTS.MODES.PU)?CONSTANTS.DISPLAY.BLOCK:CONSTANTS.DISPLAY.NONE;
   document.getElementById('panelELIM').style.display = (m===CONSTANTS.MODES.ELIM)?CONSTANTS.DISPLAY.BLOCK:CONSTANTS.DISPLAY.NONE;
   document.getElementById('panelL3').style.display   = (m===CONSTANTS.MODES.L3)?CONSTANTS.DISPLAY.BLOCK:CONSTANTS.DISPLAY.NONE;
-  document.getElementById('panelLB').style.display   = (m===CONSTANTS.MODES.LEADERBOARD)?CONSTANTS.DISPLAY.BLOCK:CONSTANTS.DISPLAY.NONE;
-
-  const showSingle = (m!==CONSTANTS.MODES.LEADERBOARD);
-  document.getElementById('singleFields').style.display= showSingle ? CONSTANTS.DISPLAY.GRID : CONSTANTS.DISPLAY.NONE;
 
   // 배치 작업 중 모드 변경 시 피드백
   if (state.batch.length > 0) {
     const modeNames = {
       PU: '스택 업데이트',
       ELIM: '탈락 정보',
-      L3: '프로필 자막',
-      LEADERBOARD: '리더보드'
+      L3: '프로필 자막'
     };
     toast(`⚠️ 모드 변경: ${modeNames[m]}`, true);
   }
 
-  if(m===CONSTANTS.MODES.LEADERBOARD) buildLeaderboardList();
   rebuildPreview();
   rebuildFileName();
   updateSendButton();  // 모드 변경 시 버튼 상태 업데이트
@@ -1365,7 +1211,6 @@ function setMode(m){
   document.getElementById('tabPU').onclick   = ()=>setMode(CONSTANTS.MODES.PU);
   document.getElementById('tabELIM').onclick = ()=>setMode(CONSTANTS.MODES.ELIM);
   document.getElementById('tabL3').onclick   = ()=>setMode(CONSTANTS.MODES.L3);
-  document.getElementById('tabLB').onclick   = ()=>setMode(CONSTANTS.MODES.LEADERBOARD);
   document.getElementById('btnSend').onclick = send;
 
   // 배치 추가 버튼

@@ -49,7 +49,7 @@
     <div class="row two">
       <div class="field">
         <label>파일명(전송 전 수정 가능) — 형식: <b>HHmm_name_mode</b></label>
-        <input id="fileName" placeholder="예: 1742_John_Doe_ELIM / 1742_Table7_LEADERBOARD" />
+        <input id="fileName" placeholder="예: 1742_John_Doe_ELIM" />
       </div>
       <div class="field">
         <label>모드</label>
@@ -57,7 +57,6 @@
           <button id="tabPU" class="active">스택 업데이트(PU)</button>
           <button id="tabELIM">탈락 정보(ELIM)</button>
           <button id="tabL3">프로필 자막(L3)</button>
-          <button id="tabLB">리더보드(LEADERBOARD)</button>
         </div>
       </div>
     </div>
@@ -126,38 +125,6 @@
     <p class="muted">"프로필 자막" + 이름 2줄이 J셀에 추가됩니다.</p>
   </section>
 
-  <!-- LEADERBOARD -->
-  <section id="panelLB" class="field" style="display:none;">
-    <div class="row two">
-      <div class="field">
-        <label>Level</label>
-        <input id="lbLevel" placeholder="예: 15" inputmode="numeric" />
-      </div>
-      <div class="field">
-        <label>Table Label (파일명용)</label>
-        <input id="lbTableLabel" placeholder="예: Table7" />
-      </div>
-    </div>
-    <div class="row three">
-      <div class="field">
-        <label>SB</label>
-        <input id="lbSB" placeholder="예: 25000" inputmode="numeric" />
-      </div>
-      <div class="field">
-        <label>BB</label>
-        <input id="lbBB" placeholder="예: 50000" inputmode="numeric" />
-      </div>
-      <div class="field">
-        <label>ANTE</label>
-        <input id="lbAnte" placeholder="예: 50000" inputmode="numeric" />
-      </div>
-    </div>
-
-    <div class="field">
-      <label>플레이어 칩스택 입력(이름 자동 로드, 필요시 수정)</label>
-      <div id="lbList" class="lb-list"></div>
-    </div>
-  </section>
 
   <!-- 액션 버튼 (입력 직후 바로 처리) -->
   <section class="field" style="display:flex;gap:12px;justify-content:flex-end;align-items:center;">

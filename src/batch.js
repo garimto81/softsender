@@ -16,8 +16,8 @@ function updateSendButton() {
     batchSection.style.display = 'none';
   }
 
-  // 배치 추가 버튼은 LEADERBOARD 모드가 아닐 때 항상 표시
-  btnAddToBatch.style.display = (state.mode === CONSTANTS.MODES.LEADERBOARD) ? 'none' : 'block';
+  // 배치 추가 버튼 항상 표시
+  btnAddToBatch.style.display = 'block';
 }
 
 // 배치에 추가
@@ -210,14 +210,6 @@ function sendSingle() {
     if(!parseIntClean(document.getElementById('stackAmt').value) || !parseIntClean(document.getElementById('bigBlind').value)){
       toast('칩스택/빅블을 입력하세요.', false); return;
     }
-  }
-  if(state.mode===CONSTANTS.MODES.LEADERBOARD){
-    const ok = !!document.getElementById('lbLevel').value.trim()
-      && parseIntClean(document.getElementById('lbSB').value)>0
-      && parseIntClean(document.getElementById('lbBB').value)>0
-      && parseIntClean(document.getElementById('lbAnte').value)>0
-      && Array.from(document.querySelectorAll('#lbList .lbAmt')).some(i=>parseIntClean(i.value)>0);
-    if(!ok){ toast('레벨/SB/BB/ANTE 및 칩스택을 입력하세요.', false); return; }
   }
   if(state.mode===CONSTANTS.MODES.ELIM){
     const prizeValue = document.getElementById('selPrize').value;
