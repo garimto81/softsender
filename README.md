@@ -258,10 +258,15 @@ GitHub Issues를 통해 문의해주세요.
 
 ---
 
-**버전**: v10.7 (2025-10-12)
+**버전**: v10.8 (2025-10-14)
 **상태**: 프로덕션 배포 완료 ✅
 
 ### 📅 버전 히스토리
+- **v10.8** (2025-10-14):
+  - **KeyPlayer K열 고정** - 헤더 검색 대신 컬럼 인덱스 10번 직접 참조
+  - **배치 리스트 키 플레이어 표시** - 배치 대기 목록에도 ⭐ 아이콘 추가
+  - **디버깅 로그 강화** - 서버/클라이언트 양쪽 KeyPlayer 데이터 추적
+  - 헤더 이름 오타/대소문자 문제 해결
 - **v10.7** (2025-10-12):
   - **Seats.csv 구조 적용** - 11개 컬럼으로 확장 (PokerRoom, TableName, TableId, TableNo, SeatId, SeatNo, PlayerId, PlayerName, Nationality, ChipCount, KeyPlayer)
   - **KeyPlayer 기능 추가** - 주요 플레이어에게 ⭐ 아이콘 표시
