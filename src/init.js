@@ -18,7 +18,6 @@ function init(){
   document.getElementById('typeId').addEventListener('input', debouncedAutoSave);
 
   document.getElementById('tabPU').onclick   = ()=>setMode(CONSTANTS.MODES.PU);
-  document.getElementById('tabELIM').onclick = ()=>setMode(CONSTANTS.MODES.ELIM);
   document.getElementById('tabL3').onclick   = ()=>setMode(CONSTANTS.MODES.L3);
   document.getElementById('btnSend').onclick = send;
 
@@ -62,18 +61,7 @@ function init(){
   const bigBlind = document.getElementById('bigBlind');
   bigBlind.addEventListener('input', ()=>{ formatInputWithComma(bigBlind); computeBB(); debouncedRebuild(); });
 
-  // ELIM 모드: 상금 여부에 따라 입력란 표시/숨김
-  document.getElementById('selPrize').addEventListener('change', (e) => {
-    const prizeDetails = document.getElementById('prizeDetails');
-    prizeDetails.style.display = e.target.value === 'prize' ? CONSTANTS.DISPLAY.BLOCK : CONSTANTS.DISPLAY.NONE;
-    rebuildPreview();
-  });
-
-  // ELIM 모드: 순위/상금 입력 시 미리보기 갱신
-  document.getElementById('prizePlace').addEventListener('input', debouncedRebuild);
-  document.getElementById('prizeAmount').addEventListener('input', debouncedRebuild);
-
-  setMode(CONSTANTS.MODES.ELIM);
+  setMode(CONSTANTS.MODES.PU);
 }
 
 window.addEventListener('load', init);

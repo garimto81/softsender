@@ -6,11 +6,6 @@ function rebuildPreview(){
   const els = {
     stackAmt: document.getElementById('stackAmt'),
     stackBB: document.getElementById('stackBB'),
-    selPrize: document.getElementById('selPrize'),
-    lbLevel: document.getElementById('lbLevel'),
-    lbSB: document.getElementById('lbSB'),
-    lbBB: document.getElementById('lbBB'),
-    lbAnte: document.getElementById('lbAnte'),
     preview: document.getElementById('preview')
   };
 
@@ -26,22 +21,6 @@ function rebuildPreview(){
       const amt = (els.stackAmt.value||'').toUpperCase();
       const bb = (els.stackBB.value||'').toUpperCase();
       body = `${name} / ${country}\nCURRENT STACK - ${amt} (${bb}BB)`;
-    }
-  }else if(mode===CONSTANTS.MODES.ELIM){
-    const player = getSelectedPlayer();
-    if (!player) { body = ''; }
-    else {
-      const name = (player.player || '').toUpperCase();
-      const country = (player.nat || '').toUpperCase();
-
-      if (els.selPrize.value === 'prize') {
-        const place = (document.getElementById('prizePlace').value || '').trim();
-        const amount = (document.getElementById('prizeAmount').value || '').trim();
-        const prizeText = place && amount ? `${place}TH PLACE ($${amount})` : '';
-        body = prizeText ? `${name} / ${country}\n${prizeText}` : `${name} / ${country}`;
-      } else {
-        body = `${name} / ${country}`;
-      }
     }
   }else if(mode===CONSTANTS.MODES.L3){
     const player = getSelectedPlayer();
@@ -59,8 +38,7 @@ function generateCurrentPreview() {
   const mode = state.mode;
   const els = {
     stackAmt: document.getElementById('stackAmt'),
-    stackBB: document.getElementById('stackBB'),
-    selPrize: document.getElementById('selPrize')
+    stackBB: document.getElementById('stackBB')
   };
 
   let body = '';
@@ -74,20 +52,6 @@ function generateCurrentPreview() {
       const amt = (els.stackAmt.value || '').toUpperCase();
       const bb = (els.stackBB.value || '').toUpperCase();
       body = `${name} / ${country}\nCURRENT STACK - ${amt} (${bb}BB)`;
-    }
-  } else if (mode === CONSTANTS.MODES.ELIM) {
-    const player = getSelectedPlayer();
-    if (player) {
-      const name = (player.player || '').toUpperCase();
-      const country = (player.nat || '').toUpperCase();
-      if (els.selPrize.value === 'prize') {
-        const place = (document.getElementById('prizePlace').value || '').trim();
-        const amount = (document.getElementById('prizeAmount').value || '').trim();
-        const prizeText = place && amount ? `${place}TH PLACE ($${amount})` : '';
-        body = prizeText ? `${name} / ${country}\n${prizeText}` : `${name} / ${country}`;
-      } else {
-        body = `${name} / ${country}`;
-      }
     }
   } else if (mode === CONSTANTS.MODES.L3) {
     const player = getSelectedPlayer();

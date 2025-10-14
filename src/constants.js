@@ -5,7 +5,6 @@ const CONSTANTS = {
   DEBOUNCE_DELAY: 300,
   MODES: {
     PU: 'PU',
-    ELIM: 'ELIM',
     L3: 'L3'
   },
   DISPLAY: {
@@ -16,7 +15,7 @@ const CONSTANTS = {
 };
 
 const state = {
-  mode: CONSTANTS.MODES.ELIM,
+  mode: CONSTANTS.MODES.PU,
   tz: 'Asia/Seoul',
   typeRows: [],
   byRoom: {},

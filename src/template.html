@@ -49,13 +49,12 @@
     <div class="row two">
       <div class="field">
         <label>파일명(전송 전 수정 가능) — 형식: <b>HHmm_name_mode</b></label>
-        <input id="fileName" placeholder="예: 1742_John_Doe_ELIM" />
+        <input id="fileName" placeholder="예: 1742_John_Doe_PU" />
       </div>
       <div class="field">
         <label>모드</label>
         <div class="tabs">
           <button id="tabPU" class="active">스택 업데이트(PU)</button>
-          <button id="tabELIM">탈락 정보(ELIM)</button>
           <button id="tabL3">프로필 자막(L3)</button>
         </div>
       </div>
@@ -100,25 +99,6 @@
     </div>
   </section>
 
-  <!-- ELIM -->
-  <section id="panelELIM" class="field" style="display:none;">
-    <div class="row two">
-      <div class="field">
-        <label>상금 여부</label>
-        <select id="selPrize">
-          <option value="">상금 없음</option>
-          <option value="prize">상금 있음</option>
-        </select>
-      </div>
-      <div class="field" id="prizeDetails" style="display:none;">
-        <label>순위 및 상금</label>
-        <div class="row two">
-          <input id="prizePlace" placeholder="예: 5" inputmode="numeric" />
-          <input id="prizeAmount" placeholder="예: 10000" inputmode="numeric" />
-        </div>
-      </div>
-    </div>
-  </section>
 
   <!-- L3 -->
   <section id="panelL3" class="field" style="display:none;">

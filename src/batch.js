@@ -211,16 +211,6 @@ function sendSingle() {
       toast('칩스택/빅블을 입력하세요.', false); return;
     }
   }
-  if(state.mode===CONSTANTS.MODES.ELIM){
-    const prizeValue = document.getElementById('selPrize').value;
-    if(prizeValue === 'prize'){
-      const place = document.getElementById('prizePlace').value.trim();
-      const amount = document.getElementById('prizeAmount').value.trim();
-      if(!place || !amount){
-        toast('순위와 상금을 입력하세요.', false); return;
-      }
-    }
-  }
 
   setStatus('전송 중…');
   google.script.run.withSuccessHandler(res=>{

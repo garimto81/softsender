@@ -1,6 +1,6 @@
 <!--
-  Soft Content Sender v10.9.0
-  Build Time: 2025-10-14T20:21:58.828Z
+  Soft Content Sender v11.0.0
+  Build Time: 2025-10-14T20:34:31.164Z
   Build Mode: NORMAL
 
   ⚠️  AUTO-GENERATED FILE - DO NOT EDIT DIRECTLY
@@ -352,13 +352,12 @@ details[open] > summary {
     <div class="row two">
       <div class="field">
         <label>파일명(전송 전 수정 가능) — 형식: <b>HHmm_name_mode</b></label>
-        <input id="fileName" placeholder="예: 1742_John_Doe_ELIM" />
+        <input id="fileName" placeholder="예: 1742_John_Doe_PU" />
       </div>
       <div class="field">
         <label>모드</label>
         <div class="tabs">
           <button id="tabPU" class="active">스택 업데이트(PU)</button>
-          <button id="tabELIM">탈락 정보(ELIM)</button>
           <button id="tabL3">프로필 자막(L3)</button>
         </div>
       </div>
@@ -403,25 +402,6 @@ details[open] > summary {
     </div>
   </section>
 
-  <!-- ELIM -->
-  <section id="panelELIM" class="field" style="display:none;">
-    <div class="row two">
-      <div class="field">
-        <label>상금 여부</label>
-        <select id="selPrize">
-          <option value="">상금 없음</option>
-          <option value="prize">상금 있음</option>
-        </select>
-      </div>
-      <div class="field" id="prizeDetails" style="display:none;">
-        <label>순위 및 상금</label>
-        <div class="row two">
-          <input id="prizePlace" placeholder="예: 5" inputmode="numeric" />
-          <input id="prizeAmount" placeholder="예: 10000" inputmode="numeric" />
-        </div>
-      </div>
-    </div>
-  </section>
 
   <!-- L3 -->
   <section id="panelL3" class="field" style="display:none;">
@@ -475,7 +455,6 @@ const CONSTANTS = {
   DEBOUNCE_DELAY: 300,
   MODES: {
     PU: 'PU',
-    ELIM: 'ELIM',
     L3: 'L3'
   },
   DISPLAY: {
@@ -486,7 +465,7 @@ const CONSTANTS = {
 };
 
 const state = {
-  mode: CONSTANTS.MODES.ELIM,
+  mode: CONSTANTS.MODES.PU,
   tz: 'Asia/Seoul',
   typeRows: [],
   byRoom: {},
@@ -805,11 +784,6 @@ function rebuildPreview(){
   const els = {
     stackAmt: document.getElementById('stackAmt'),
     stackBB: document.getElementById('stackBB'),
-    selPrize: document.getElementById('selPrize'),
-    lbLevel: document.getElementById('lbLevel'),
-    lbSB: document.getElementById('lbSB'),
-    lbBB: document.getElementById('lbBB'),
-    lbAnte: document.getElementById('lbAnte'),
     preview: document.getElementById('preview')
   };
 
@@ -825,22 +799,6 @@ function rebuildPreview(){
       const amt = (els.stackAmt.value||'').toUpperCase();
       const bb = (els.stackBB.value||'').toUpperCase();
       body = `${name} / ${country}\nCURRENT STACK - ${amt} (${bb}BB)`;
-    }
-  }else if(mode===CONSTANTS.MODES.ELIM){
-    const player = getSelectedPlayer();
-    if (!player) { body = ''; }
-    else {
-      const name = (player.player || '').toUpperCase();
-      const country = (player.nat || '').toUpperCase();
-
-      if (els.selPrize.value === 'prize') {
-        const place = (document.getElementById('prizePlace').value || '').trim();
-        const amount = (document.getElementById('prizeAmount').value || '').trim();
-        const prizeText = place && amount ? `${place}TH PLACE (${amount})` : '';
-        body = prizeText ? `${name} / ${country}\n${prizeText}` : `${name} / ${country}`;
-      } else {
-        body = `${name} / ${country}`;
-      }
     }
   }else if(mode===CONSTANTS.MODES.L3){
     const player = getSelectedPlayer();
@@ -858,8 +816,7 @@ function generateCurrentPreview() {
   const mode = state.mode;
   const els = {
     stackAmt: document.getElementById('stackAmt'),
-    stackBB: document.getElementById('stackBB'),
-    selPrize: document.getElementById('selPrize')
+    stackBB: document.getElementById('stackBB')
   };
 
   let body = '';
@@ -873,20 +830,6 @@ function generateCurrentPreview() {
       const amt = (els.stackAmt.value || '').toUpperCase();
       const bb = (els.stackBB.value || '').toUpperCase();
       body = `${name} / ${country}\nCURRENT STACK - ${amt} (${bb}BB)`;
-    }
-  } else if (mode === CONSTANTS.MODES.ELIM) {
-    const player = getSelectedPlayer();
-    if (player) {
-      const name = (player.player || '').toUpperCase();
-      const country = (player.nat || '').toUpperCase();
-      if (els.selPrize.value === 'prize') {
-        const place = (document.getElementById('prizePlace').value || '').trim();
-        const amount = (document.getElementById('prizeAmount').value || '').trim();
-        const prizeText = place && amount ? `${place}TH PLACE (${amount})` : '';
-        body = prizeText ? `${name} / ${country}\n${prizeText}` : `${name} / ${country}`;
-      } else {
-        body = `${name} / ${country}`;
-      }
     }
   } else if (mode === CONSTANTS.MODES.L3) {
     const player = getSelectedPlayer();
@@ -1131,16 +1074,6 @@ function sendSingle() {
       toast('칩스택/빅블을 입력하세요.', false); return;
     }
   }
-  if(state.mode===CONSTANTS.MODES.ELIM){
-    const prizeValue = document.getElementById('selPrize').value;
-    if(prizeValue === 'prize'){
-      const place = document.getElementById('prizePlace').value.trim();
-      const amount = document.getElementById('prizeAmount').value.trim();
-      if(!place || !amount){
-        toast('순위와 상금을 입력하세요.', false); return;
-      }
-    }
-  }
 
   setStatus('전송 중…');
   google.script.run.withSuccessHandler(res=>{
@@ -1167,18 +1100,15 @@ function sendSingle() {
 function setMode(m){
   state.mode = m;
   document.getElementById('tabPU').classList.toggle('active', m===CONSTANTS.MODES.PU);
-  document.getElementById('tabELIM').classList.toggle('active', m===CONSTANTS.MODES.ELIM);
   document.getElementById('tabL3').classList.toggle('active', m===CONSTANTS.MODES.L3);
 
   document.getElementById('panelPU').style.display   = (m===CONSTANTS.MODES.PU)?CONSTANTS.DISPLAY.BLOCK:CONSTANTS.DISPLAY.NONE;
-  document.getElementById('panelELIM').style.display = (m===CONSTANTS.MODES.ELIM)?CONSTANTS.DISPLAY.BLOCK:CONSTANTS.DISPLAY.NONE;
   document.getElementById('panelL3').style.display   = (m===CONSTANTS.MODES.L3)?CONSTANTS.DISPLAY.BLOCK:CONSTANTS.DISPLAY.NONE;
 
   // 배치 작업 중 모드 변경 시 피드백
   if (state.batch.length > 0) {
     const modeNames = {
       PU: '스택 업데이트',
-      ELIM: '탈락 정보',
       L3: '프로필 자막'
     };
     toast(`⚠️ 모드 변경: ${modeNames[m]}`, true);
@@ -1209,7 +1139,6 @@ function setMode(m){
   document.getElementById('typeId').addEventListener('input', debouncedAutoSave);
 
   document.getElementById('tabPU').onclick   = ()=>setMode(CONSTANTS.MODES.PU);
-  document.getElementById('tabELIM').onclick = ()=>setMode(CONSTANTS.MODES.ELIM);
   document.getElementById('tabL3').onclick   = ()=>setMode(CONSTANTS.MODES.L3);
   document.getElementById('btnSend').onclick = send;
 
@@ -1253,18 +1182,7 @@ function setMode(m){
   const bigBlind = document.getElementById('bigBlind');
   bigBlind.addEventListener('input', ()=>{ formatInputWithComma(bigBlind); computeBB(); debouncedRebuild(); });
 
-  // ELIM 모드: 상금 여부에 따라 입력란 표시/숨김
-  document.getElementById('selPrize').addEventListener('change', (e) => {
-    const prizeDetails = document.getElementById('prizeDetails');
-    prizeDetails.style.display = e.target.value === 'prize' ? CONSTANTS.DISPLAY.BLOCK : CONSTANTS.DISPLAY.NONE;
-    rebuildPreview();
-  });
-
-  // ELIM 모드: 순위/상금 입력 시 미리보기 갱신
-  document.getElementById('prizePlace').addEventListener('input', debouncedRebuild);
-  document.getElementById('prizeAmount').addEventListener('input', debouncedRebuild);
-
-  setMode(CONSTANTS.MODES.ELIM);
+  setMode(CONSTANTS.MODES.PU);
 }
 
 window.addEventListener('load', init);
