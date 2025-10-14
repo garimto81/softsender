@@ -36,6 +36,10 @@ function getTypeRows(typeIdOverride) {
     const headers = values[0].map(v => String(v).trim());
     const idx = (name) => headers.findIndex(h => h.toLowerCase() === name.toLowerCase());
 
+    // 디버깅: 헤더 출력
+    Logger.log('📊 Google Sheets 헤더:', headers);
+    Logger.log('📊 전체 컬럼 수:', headers.length);
+
     // Seats.csv 구조 기반 헤더 매핑
     const iRoom      = idx('PokerRoom');
     const iTName     = idx('TableName');
@@ -49,24 +53,46 @@ function getTypeRows(typeIdOverride) {
     const iChipCount = idx('ChipCount');
     const iKeyPlayer = idx('KeyPlayer');
 
+    // 디버깅: KeyPlayer 컬럼 인덱스 확인
+    Logger.log('⭐ KeyPlayer 컬럼 인덱스:', iKeyPlayer);
+    if (iKeyPlayer >= 0) {
+      Logger.log('⭐ KeyPlayer 컬럼명:', headers[iKeyPlayer]);
+    } else {
+      Logger.log('❌ KeyPlayer 컬럼을 찾을 수 없음!');
+    }
+
     // 필수 컬럼 검증 (기본 필드만)
     if ([iRoom, iTNo, iSeat, iPlayer, iNat].some(i => i < 0)) {
       throw new Error('BAD_HEADERS');
     }
 
-    const rows = values.slice(1).map(r => ({
-      room:      String(r[iRoom] || '').trim(),
-      tname:     String(r[iTName] || '').trim(),
-      tableId:   String(r[iTableId] || '').trim(),
-      tno:       String(r[iTNo] || '').trim(),
-      seatId:    String(r[iSeatId] || '').trim(),
-      seat:      String(r[iSeat] || '').trim(),
-      playerId:  String(r[iPlayerId] || '').trim(),
-      player:    String(r[iPlayer] || '').trim(),
-      nat:       String(r[iNat] || '').trim(),
-      chipCount: String(r[iChipCount] || '').trim(),
-      keyPlayer: String(r[iKeyPlayer] || 'FALSE').trim().toUpperCase() === 'TRUE',
-    })).filter(r => r.room && r.tno && r.seat);
+    const rows = values.slice(1).map((r, idx) => {
+      const keyPlayerValue = iKeyPlayer >= 0 ? String(r[iKeyPlayer] || 'FALSE').trim().toUpperCase() : 'FALSE';
+      const isKeyPlayer = keyPlayerValue === 'TRUE';
+
+      // 디버깅: 첫 3개 행만 KeyPlayer 값 출력
+      if (idx < 3) {
+        Logger.log(`🔍 행 ${idx + 2}: KeyPlayer 원본값="${r[iKeyPlayer]}", 변환값="${keyPlayerValue}", 결과=${isKeyPlayer}`);
+      }
+
+      return {
+        room:      String(r[iRoom] || '').trim(),
+        tname:     String(r[iTName] || '').trim(),
+        tableId:   String(r[iTableId] || '').trim(),
+        tno:       String(r[iTNo] || '').trim(),
+        seatId:    String(r[iSeatId] || '').trim(),
+        seat:      String(r[iSeat] || '').trim(),
+        playerId:  String(r[iPlayerId] || '').trim(),
+        player:    String(r[iPlayer] || '').trim(),
+        nat:       String(r[iNat] || '').trim(),
+        chipCount: String(r[iChipCount] || '').trim(),
+        keyPlayer: isKeyPlayer,
+      };
+    }).filter(r => r.room && r.tno && r.seat);
+
+    // 디버깅: KeyPlayer가 true인 행 개수
+    const keyPlayerCount = rows.filter(r => r.keyPlayer).length;
+    Logger.log(`✅ 최종 결과: 전체 ${rows.length}행 중 KeyPlayer=${keyPlayerCount}개`);
 
     return { ok: true, headers, rows, typeId };
   } catch(e) {
