@@ -134,43 +134,52 @@ function sendBatch() {
   const picked = document.getElementById('selTime').value;
   const timeStr = autoNow ? state.timeCenter.slice(0,5) : picked;
   const hhmm = hhmmFromTimeStr(timeStr);
-  const filename = `${hhmm}_Batch_${state.batch.length}items`;
 
-  const payload = {
-    autoNow,
-    pickedTime: picked,
-    tz: state.tz,
-    kind: 'BATCH',
-    eFix: '미완료',
-    gFix: 'SOFT',
-    filename,
-    jBlock,
-    cueId: state.cueId || undefined
-  };
+  const key = document.getElementById('selRoomTable').value;
+  const tno = key ? key.split('|')[1] : '';
 
-  setStatus('전송 중…');
+  // 새 형식으로 파일명 생성: Batch_개수_시간
+  const modeData = { count: state.batch.length };
 
   google.script.run
-    .withSuccessHandler(res => {
-      if (!res?.ok) {
-        toast('❌ 전송 실패: ' + (res?.error || 'unknown'), false);
-        setStatus('에러');
-        return;
-      }
+    .withSuccessHandler(filename => {
+      const payload = {
+        autoNow,
+        pickedTime: picked,
+        tz: state.tz,
+        kind: 'BATCH',
+        eFix: '미완료',
+        gFix: 'SOFT',
+        filename,
+        jBlock,
+        cueId: state.cueId || undefined
+      };
 
-      toast(`✅ 배치 전송 완료! ${state.batch.length}건이 행 ${res.row}(${res.time})에 저장되었습니다.`, true);
-      setStatus('준비됨');
+      setStatus('전송 중…');
 
-      state.batch = [];
-      renderBatchList();
-      updateBatchPreview();
-      updateSendButton();
+      google.script.run
+        .withSuccessHandler(res => {
+          if (!res?.ok) {
+            toast('❌ 전송 실패: ' + (res?.error || 'unknown'), false);
+            setStatus('에러');
+            return;
+          }
+
+          toast(`✅ 배치 전송 완료! ${state.batch.length}건이 행 ${res.row}(${res.time})에 저장되었습니다.`, true);
+          setStatus('준비됨');
+
+          state.batch = [];
+          renderBatchList();
+          updateBatchPreview();
+          updateSendButton();
+        })
+        .withFailureHandler(err => {
+          toast('❌ 서버 오류: ' + (err?.message || err), false);
+          setStatus('에러');
+        })
+        .updateVirtual(payload);
     })
-    .withFailureHandler(err => {
-      toast('❌ 서버 오류: ' + (err?.message || err), false);
-      setStatus('에러');
-    })
-    .updateVirtual(payload);
+    .buildFileName('BATCH', hhmm, tno, 'Batch', modeData);
 }
 
 /* 스마트 전송 (단일/배치 자동 감지) */

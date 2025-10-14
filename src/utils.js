@@ -111,7 +111,7 @@ function fillSeats(){
 
   const arr = state.byRoomTable[key] || [];
 
-  // Seat 드롭다운: "#1 - John Doe" 형식
+  // Seat 드롭다운: "#1 - John Doe ⭐" 형식 (KeyPlayer 표시)
   const seats = [...new Set(arr.map(r => normSeat(r.seat)))]
     .sort((a,b) => Number(a.replace('#','')) - Number(b.replace('#','')));
 
@@ -120,7 +120,11 @@ function fillSeats(){
     const player = findPlayerBySeat(key, s);
     const o = document.createElement('option');
     o.value = s;
-    o.textContent = `${s} - ${player?.player || ''}`;
+
+    // KeyPlayer인 경우 ⭐ 표시 추가
+    const keyPlayerIcon = player?.keyPlayer ? ' ⭐' : '';
+    o.textContent = `${s} - ${player?.player || ''}${keyPlayerIcon}`;
+
     fragment.appendChild(o);
   });
   selSeat.appendChild(fragment);
@@ -169,16 +173,43 @@ function rebuildFileName(){
   const hhmm   = hhmmFromTimeStr( picked || (state.timeCenter||'').slice(0,5) );
 
   let nameForMode;
+  let modeData = {};
+
   if (mode === CONSTANTS.MODES.LEADERBOARD) {
     nameForMode = document.getElementById('lbTableLabel').value || ('Table'+tno);
   } else {
     const player = getSelectedPlayer();
     nameForMode = player ? player.player : 'Player';
+
+    // PU 모드: 칩수 + BB
+    if (mode === CONSTANTS.MODES.PU) {
+      const chipCount = parseIntClean(document.getElementById('stackAmt').value);
+      const bb = document.getElementById('stackBB').value;
+      modeData = { chipCount, bb };
+    }
+
+    // ELIM 모드: 순위 + 상금
+    if (mode === CONSTANTS.MODES.ELIM) {
+      const hasPrize = document.querySelector('input[name="elimPrize"]:checked')?.value === 'yes';
+      const rank = document.getElementById('elimRank')?.value || '';
+      const prize = hasPrize ? parseIntClean(document.getElementById('elimAmount')?.value) : '';
+      modeData = { rank, prize };
+    }
+
+    // L3 모드: 프로필
+    if (mode === CONSTANTS.MODES.L3) {
+      modeData = { profileType: 'Profile' };
+    }
+  }
+
+  // BATCH 모드: 개수
+  if (state.batch.length > 0) {
+    modeData.count = state.batch.length;
   }
 
   google.script.run.withSuccessHandler(name=>{
     document.getElementById('fileName').value = name;
-  }).buildFileName(mode, hhmm, tno, nameForMode);
+  }).buildFileName(mode, hhmm, tno, nameForMode, modeData);
 }
 
 /* 숫자 유틸 */
