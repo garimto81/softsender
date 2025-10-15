@@ -11,7 +11,7 @@ async function sendWithOptimisticUI(payload) {
   try {
     // 1. 즉시 UI 피드백 (0.1초 이내)
     toast('✅ 전송 중...', true);
-    showLoadingOverlay('서버 전송 중...', true);
+    showLoading('서버 전송 중...', '백그라운드 동기화');
 
     // 2. 로컬 큐에 추가
     await addToSyncQueue({
@@ -27,13 +27,13 @@ async function sendWithOptimisticUI(payload) {
 
     // 4. 즉시 다음 작업 허용 (사용자는 기다리지 않음)
     setTimeout(() => {
-      hideLoadingOverlay();
+      hideLoading();
       toast('📤 백그라운드 동기화 중...', true);
     }, 300);
 
   } catch(e) {
     console.error('❌ Optimistic UI 실패:', e);
-    hideLoadingOverlay();
+    hideLoading();
     toast('❌ 전송 실패 - 재시도하세요', false);
   }
 }
