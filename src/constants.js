@@ -14,6 +14,12 @@ const CONSTANTS = {
   }
 };
 
+// localStorage 키 (Sheet ID 백업용)
+const LS_KEYS = {
+  CUE: 'SCS_CUE_ID',
+  TYPE: 'SCS_TYPE_ID'
+};
+
 const state = {
   mode: CONSTANTS.MODES.PU,
   tz: 'Asia/Seoul',

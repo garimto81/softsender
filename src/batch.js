@@ -241,19 +241,14 @@ function sendSingle() {
     cueId: state.cueId || undefined
   };
 
-  // Optimistic UI 사용 (즉시 피드백 + 백그라운드 동기화)
-  if (typeof sendWithOptimisticUI === 'function') {
-    sendWithOptimisticUI(payload);
-  } else {
-    // Fallback: 기존 방식 (동기)
-    setStatus('전송 중…');
-    google.script.run.withSuccessHandler(res=>{
-      if(!res?.ok){ toast('실패: '+(res?.error||'unknown'), false); setStatus('에러'); return; }
-      toast(`✅ ${res.filename} - 행 ${res.row}(${res.time}) 저장 완료 (SC${String(res.scNumber).padStart(3, '0')})`);
-      setStatus('준비됨');
-    }).withFailureHandler(err=>{
-      toast('서버 오류: '+(err?.message||err), false);
-      setStatus('에러');
-    }).updateVirtual(payload);
-  }
+  // ===== 동기 전송 (Optimistic UI 비활성화) =====
+  setStatus('전송 중…');
+  google.script.run.withSuccessHandler(res=>{
+    if(!res?.ok){ toast('실패: '+(res?.error||'unknown'), false); setStatus('에러'); return; }
+    toast(`✅ ${res.filename} - 행 ${res.row}(${res.time}) 저장 완료 (SC${String(res.scNumber).padStart(3, '0')})`);
+    setStatus('준비됨');
+  }).withFailureHandler(err=>{
+    toast('서버 오류: '+(err?.message||err), false);
+    setStatus('에러');
+  }).updateVirtual(payload);
 }

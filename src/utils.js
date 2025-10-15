@@ -393,5 +393,5 @@ function reloadSheets(){
       hideLoading();
       setStatus('준비됨');
     }, 500);
-  }).getTypeRows(state.typeId || null);
+  }).getCachedTypeRows(state.typeId || null);  // ✅ 5분 캐싱 활성화
 }

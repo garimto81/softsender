@@ -1,6 +1,6 @@
 <!--
   Soft Content Sender v11.0.0
-  Build Time: 2025-10-15T19:39:26.360Z
+  Build Time: 2025-10-15T19:57:50.939Z
   Build Mode: NORMAL
 
   ⚠️  AUTO-GENERATED FILE - DO NOT EDIT DIRECTLY
@@ -509,8 +509,6 @@ details[open] > summary {
 </div>
 
 <script>
-  const LS_KEYS = { CUE:'SCS_CUE_ID', TYPE:'SCS_TYPE_ID' };
-
   // 상수 정의
 const CONSTANTS = {
   TOAST_DURATION: 1800,
@@ -527,6 +525,12 @@ const CONSTANTS = {
   }
 };
 
+// localStorage 키 (Sheet ID 백업용)
+const LS_KEYS = {
+  CUE: 'SCS_CUE_ID',
+  TYPE: 'SCS_TYPE_ID'
+};
+
 const state = {
   mode: CONSTANTS.MODES.PU,
   tz: 'Asia/Seoul',
@@ -539,7 +543,7 @@ const state = {
   typeId: '',
   batch: []          // 배치 전송용 배열
 };
-
+ (LS_KEYS 포함)
   function toast(msg, ok=true){
   const t=document.getElementById('toast');
   t.textContent=msg; t.className='show'+(ok?'':' err');
@@ -935,7 +939,7 @@ function reloadSheets(){
       hideLoading();
       setStatus('준비됨');
     }, 500);
-  }).getTypeRows(state.typeId || null);
+  }).getCachedTypeRows(state.typeId || null);  // ✅ 5분 캐싱 활성화
 }
 
   /* 미리보기(전부 대문자 출력) */
@@ -1612,21 +1616,16 @@ function sendSingle() {
     cueId: state.cueId || undefined
   };
 
-  // Optimistic UI 사용 (즉시 피드백 + 백그라운드 동기화)
-  if (typeof sendWithOptimisticUI === 'function') {
-    sendWithOptimisticUI(payload);
-  } else {
-    // Fallback: 기존 방식 (동기)
-    setStatus('전송 중…');
-    google.script.run.withSuccessHandler(res=>{
-      if(!res?.ok){ toast('실패: '+(res?.error||'unknown'), false); setStatus('에러'); return; }
-      toast(`✅ ${res.filename} - 행 ${res.row}(${res.time}) 저장 완료 (SC${String(res.scNumber).padStart(3, '0')})`);
-      setStatus('준비됨');
-    }).withFailureHandler(err=>{
-      toast('서버 오류: '+(err?.message||err), false);
-      setStatus('에러');
-    }).updateVirtual(payload);
-  }
+  // ===== 동기 전송 (Optimistic UI 비활성화) =====
+  setStatus('전송 중…');
+  google.script.run.withSuccessHandler(res=>{
+    if(!res?.ok){ toast('실패: '+(res?.error||'unknown'), false); setStatus('에러'); return; }
+    toast(`✅ ${res.filename} - 행 ${res.row}(${res.time}) 저장 완료 (SC${String(res.scNumber).padStart(3, '0')})`);
+    setStatus('준비됨');
+  }).withFailureHandler(err=>{
+    toast('서버 오류: '+(err?.message||err), false);
+    setStatus('에러');
+  }).updateVirtual(payload);
 }
 
   // 모드 변경
