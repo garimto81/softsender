@@ -57,7 +57,8 @@ function generateCurrentPreview() {
     const player = getSelectedPlayer();
     if (player) {
       const name = (player.player || '').toUpperCase();
-      body = `프로필 자막\n${name}`;
+      const country = (player.nat || '').toUpperCase();
+      body = `프로필 자막\n${name} / ${country}`;
     }
   }
 

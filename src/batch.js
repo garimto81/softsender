@@ -141,48 +141,47 @@ function sendBatch() {
   const key = document.getElementById('selRoomTable').value;
   const tno = key ? key.split('|')[1] : '';
 
-  // 새 형식으로 파일명 생성: Batch_개수_시간
+  // 배치 파일명 생성 데이터
   const modeData = { count: state.batch.length };
 
+  const payload = {
+    autoNow,
+    pickedTime: picked,
+    tz: state.tz,
+    kind: 'BATCH',
+    eFix: '미완료',
+    gFix: 'SOFT',
+    playerName: 'Batch',
+    tableNo: tno,
+    hhmm,
+    modeData,
+    jBlock,
+    cueId: state.cueId || undefined
+  };
+
+  setStatus('전송 중…');
+
   google.script.run
-    .withSuccessHandler(filename => {
-      const payload = {
-        autoNow,
-        pickedTime: picked,
-        tz: state.tz,
-        kind: 'BATCH',
-        eFix: '미완료',
-        gFix: 'SOFT',
-        filename,
-        jBlock,
-        cueId: state.cueId || undefined
-      };
+    .withSuccessHandler(res => {
+      if (!res?.ok) {
+        toast('❌ 전송 실패: ' + (res?.error || 'unknown'), false);
+        setStatus('에러');
+        return;
+      }
 
-      setStatus('전송 중…');
+      toast(`✅ ${res.filename} - 행 ${res.row}(${res.time}) 저장 완료 (${state.batch.length}건, SC${String(res.scNumber).padStart(3, '0')})`, true);
+      setStatus('준비됨');
 
-      google.script.run
-        .withSuccessHandler(res => {
-          if (!res?.ok) {
-            toast('❌ 전송 실패: ' + (res?.error || 'unknown'), false);
-            setStatus('에러');
-            return;
-          }
-
-          toast(`✅ 배치 전송 완료! ${state.batch.length}건이 행 ${res.row}(${res.time})에 저장되었습니다.`, true);
-          setStatus('준비됨');
-
-          state.batch = [];
-          renderBatchList();
-          updateBatchPreview();
-          updateSendButton();
-        })
-        .withFailureHandler(err => {
-          toast('❌ 서버 오류: ' + (err?.message || err), false);
-          setStatus('에러');
-        })
-        .updateVirtual(payload);
+      state.batch = [];
+      renderBatchList();
+      updateBatchPreview();
+      updateSendButton();
     })
-    .buildFileName('BATCH', hhmm, tno, 'Batch', modeData);
+    .withFailureHandler(err => {
+      toast('❌ 서버 오류: ' + (err?.message || err), false);
+      setStatus('에러');
+    })
+    .updateVirtual(payload);
 }
 
 /* 스마트 전송 (단일/배치 자동 감지) */
@@ -201,21 +200,35 @@ function send(){
 function sendSingle() {
   const autoNow = document.getElementById('chkAuto').checked;
   const picked  = document.getElementById('selTime').value;
-  const filename= document.getElementById('fileName').value.trim();
   const jBlock  = generateCurrentPreview(); // 배치 미리보기 제외
 
   if(!jBlock){ toast('미리보기 내용이 비었습니다.', false); return; }
-  if(!filename){ toast('파일명 비어있음.', false); return; }
   if(state.mode===CONSTANTS.MODES.PU){
     if(!parseIntClean(document.getElementById('stackAmt').value) || !parseIntClean(document.getElementById('bigBlind').value)){
       toast('칩스택/빅블을 입력하세요.', false); return;
     }
   }
 
+  // 파일명 생성에 필요한 데이터 수집
+  const player = getSelectedPlayer();
+  const key = document.getElementById('selRoomTable').value;
+  const tno = key ? key.split('|')[1] : '';
+  const timeStr = autoNow ? state.timeCenter.slice(0,5) : picked;
+  const hhmm = hhmmFromTimeStr(timeStr);
+
+  let modeData = {};
+  if (state.mode === CONSTANTS.MODES.PU) {
+    const chipCount = parseIntClean(document.getElementById('stackAmt').value);
+    const bb = document.getElementById('stackBB').value;
+    modeData = { chipCount, bb };
+  } else if (state.mode === CONSTANTS.MODES.L3) {
+    modeData = { profileType: 'Profile' };
+  }
+
   setStatus('전송 중…');
   google.script.run.withSuccessHandler(res=>{
     if(!res?.ok){ toast('실패: '+(res?.error||'unknown'), false); setStatus('에러'); return; }
-    toast(`행 ${res.row}(${res.time}) 갱신 완료`);
+    toast(`✅ ${res.filename} - 행 ${res.row}(${res.time}) 저장 완료 (SC${String(res.scNumber).padStart(3, '0')})`);
     setStatus('준비됨');
   }).withFailureHandler(err=>{
     toast('서버 오류: '+(err?.message||err), false);
@@ -227,7 +240,10 @@ function sendSingle() {
     kind: state.mode,
     eFix: '미완료',
     gFix: 'SOFT',
-    filename,
+    playerName: player ? player.player : 'Player',
+    tableNo: tno,
+    hhmm,
+    modeData,
     jBlock,
     cueId: state.cueId || undefined
   });

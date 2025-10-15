@@ -15,11 +15,73 @@ function doGet() {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DEFAULT); // 클릭재킹 방지 (보안 강화)
 }
 function getBootstrap() {
+  // 사용자별 저장된 Sheet ID 로드
+  const userPrefs = getUserPreference();
+  const userEmail = Session.getEffectiveUser().getEmail();
+
   return {
-    cueId: CFG.CUE_SHEET_ID,
-    typeId: CFG.TYPE_SHEET_ID,
+    cueId: userPrefs.cueId || CFG.CUE_SHEET_ID,
+    typeId: userPrefs.typeId || CFG.TYPE_SHEET_ID,
     tz: CFG.KST_TZ,
+    userEmail: userEmail,
+    defaultCueId: CFG.CUE_SHEET_ID,
+    defaultTypeId: CFG.TYPE_SHEET_ID
   };
+}
+
+// 사용자별 Sheet ID 저장
+function saveUserPreference(cueId, typeId) {
+  try {
+    const userEmail = Session.getEffectiveUser().getEmail();
+    const props = PropertiesService.getUserProperties();
+
+    if (cueId && cueId.trim()) {
+      props.setProperty('LAST_CUE_' + userEmail, cueId.trim());
+    }
+    if (typeId && typeId.trim()) {
+      props.setProperty('LAST_TYPE_' + userEmail, typeId.trim());
+    }
+
+    Logger.log(`User preferences saved for ${userEmail}: CUE=${cueId}, TYPE=${typeId}`);
+    return { ok: true };
+  } catch(e) {
+    Logger.log('saveUserPreference error:', e);
+    return { ok: false, error: String(e) };
+  }
+}
+
+// 사용자별 Sheet ID 로드
+function getUserPreference() {
+  try {
+    const userEmail = Session.getEffectiveUser().getEmail();
+    const props = PropertiesService.getUserProperties();
+
+    const cueId = props.getProperty('LAST_CUE_' + userEmail) || '';
+    const typeId = props.getProperty('LAST_TYPE_' + userEmail) || '';
+
+    Logger.log(`User preferences loaded for ${userEmail}: CUE=${cueId}, TYPE=${typeId}`);
+    return { cueId, typeId };
+  } catch(e) {
+    Logger.log('getUserPreference error:', e);
+    return { cueId: '', typeId: '' };
+  }
+}
+
+// 사용자별 Sheet ID 초기화
+function clearUserPreference() {
+  try {
+    const userEmail = Session.getEffectiveUser().getEmail();
+    const props = PropertiesService.getUserProperties();
+
+    props.deleteProperty('LAST_CUE_' + userEmail);
+    props.deleteProperty('LAST_TYPE_' + userEmail);
+
+    Logger.log(`User preferences cleared for ${userEmail}`);
+    return { ok: true };
+  } catch(e) {
+    Logger.log('clearUserPreference error:', e);
+    return { ok: false, error: String(e) };
+  }
 }
 function getTypeRows(typeIdOverride) {
   try {
@@ -133,8 +195,36 @@ function getTimeOptions(cueIdOverride) {
     return { ok:false, error:String(e) };
   }
 }
-function buildFileName(kind, hhmm, tableNo, playerOrLabel, modeData) {
-  // 파일명 형식: {Name}_{Mode}_{Content}
+function getNextSCNumber(cueId) {
+  try {
+    const ss = SpreadsheetApp.openById(cueId);
+    const sh = ss.getSheetByName(CFG.CUE_TAB_VIRTUAL);
+    if (!sh) return 1;
+
+    const last = sh.getLastRow();
+    if (last < 2) return 1;
+
+    // F열(파일명) 전체 읽기
+    const colF = sh.getRange(2, 6, last - 1, 1).getValues().flat();
+
+    // SC로 시작하는 번호 추출
+    const scNumbers = colF
+      .map(v => {
+        const str = String(v || '').trim();
+        const match = str.match(/^SC(\d{3})_/);
+        return match ? parseInt(match[1], 10) : 0;
+      })
+      .filter(n => n > 0);
+
+    // 최대값 찾기 (없으면 0 반환 후 +1 = 1)
+    return scNumbers.length > 0 ? Math.max(...scNumbers) + 1 : 1;
+  } catch(e) {
+    Logger.log('getNextSCNumber error:', e);
+    return 1; // 에러 시 기본값 1
+  }
+}
+function buildFileName(kind, hhmm, tableNo, playerOrLabel, modeData, scNumber) {
+  // 파일명 형식: {HHMM}_SC###_{기존내용}
   // modeData = { chipCount, bb, rank, prize, profileType, count }
 
   const safe = (s) => {
@@ -142,51 +232,35 @@ function buildFileName(kind, hhmm, tableNo, playerOrLabel, modeData) {
     return str.replace(/[^\w\-#]+/g,'_');
   };
 
+  const timePrefix = String(hhmm || '0000').padStart(4, '0');
+  const scPrefix = `SC${String(scNumber || 1).padStart(3, '0')}`;
   const name = safe(playerOrLabel || 'Player');
 
-  // PU 모드: 이름_PU_칩수_BB
+  // PU 모드: {HHMM}_SC###_이름_PU_칩수_BB
   if (kind === 'PU') {
     const chipCount = modeData?.chipCount || '';
     const bb = modeData?.bb || '';
 
     if (bb) {
-      return `${name}_PU_${chipCount}_${bb}BB`;
+      return `${timePrefix}_${scPrefix}_${name}_PU_${chipCount}_${bb}BB`;
     }
-    return `${name}_PU_${chipCount}`;
+    return `${timePrefix}_${scPrefix}_${name}_PU_${chipCount}`;
   }
 
-  // ELIM 모드: 이름_ELIM_순위_상금
-  if (kind === 'ELIM') {
-    const rank = modeData?.rank || '';
-    const prize = modeData?.prize || '';
-
-    if (prize && prize !== '0') {
-      return `${name}_ELIM_${rank}_${prize}`;
-    }
-    return `${name}_ELIM_${rank}`;
-  }
-
-  // L3 모드: 이름_L3_Profile
+  // L3 모드: {HHMM}_SC###_이름_L3_Profile
   if (kind === 'L3') {
     const profileType = modeData?.profileType || 'Profile';
-    return `${name}_L3_${profileType}`;
+    return `${timePrefix}_${scPrefix}_${name}_L3_${profileType}`;
   }
 
-  // LEADERBOARD 모드: 테이블명_LEADERBOARD
-  if (kind === 'LEADERBOARD') {
-    const scope = safe(playerOrLabel || ('Table' + (tableNo || '')));
-    return `${scope}_LEADERBOARD`;
-  }
-
-  // BATCH 모드: Batch_개수_시간
+  // BATCH 모드: {HHMM}_SC###_Batch_개수
   if (kind === 'BATCH') {
     const count = modeData?.count || '';
-    const time = String(hhmm || '').padStart(4, '0');
-    return `Batch_${count}_${time}`;
+    return `${timePrefix}_${scPrefix}_Batch_${count}`;
   }
 
   // 기본 (SC)
-  return `${name}_SC`;
+  return `${timePrefix}_${scPrefix}_${name}_SC`;
 }
 function updateVirtual(payload) {
   if (!payload || !payload.kind) return { ok:false, error:'BAD_PAYLOAD' };
@@ -212,9 +286,21 @@ function updateVirtual(payload) {
     if (rowIdx0 < 0) return { ok:false, error:`NO_MATCH_TIME:${pickedStr}` };
     const row = 2 + rowIdx0;
 
+    // SC 번호 자동 생성
+    const scNumber = getNextSCNumber(cueId);
+
+    // 파일명 자동 생성 (SC### 접두사 포함)
+    const fVal = buildFileName(
+      payload.kind,
+      payload.hhmm,
+      payload.tableNo,
+      payload.playerName,
+      payload.modeData,
+      scNumber
+    );
+
     const eVal = payload.eFix || CFG.DEFAULT_STATUS_INCOMPLETE;
     const gVal = payload.gFix || CFG.DEFAULT_CONTENT_TYPE;
-    const fVal = String(payload.filename||'').trim();
     const jBlock = String(payload.jBlock||'').replace(/\r\n/g,'\n');
     if (!fVal) throw new Error('EMPTY_FILENAME');
     if (!jBlock) throw new Error('EMPTY_JBLOCK');
@@ -230,7 +316,7 @@ function updateVirtual(payload) {
     sh.getRange(row,6).setValue(fVal);  // F
     sh.getRange(row,7).setValue(gVal);  // G
     jCell.setValue(next);               // J
-    return { ok:true, row, time:pickedStr };
+    return { ok:true, row, time:pickedStr, filename: fVal, scNumber };
   } catch(e) {
 
     const safeError = e.message || String(e);

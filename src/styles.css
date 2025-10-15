@@ -35,6 +35,60 @@ textarea{min-height: calc(var(--touch)*2.3); padding:14px var(--pad); white-spac
 #toast.show{opacity:1;transition:opacity .15s;}
 #toast.err{border-color:var(--err);color:#ffdada;}
 
+/* 로딩 오버레이 */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(11, 29, 20, 0.95);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  backdrop-filter: blur(4px);
+}
+
+.loading-content {
+  text-align: center;
+  padding: 40px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  max-width: 400px;
+  width: 90%;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  margin: 0 auto 20px;
+  border: 4px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-message {
+  font-size: 1.1em;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+
+.loading-details {
+  font-size: 0.9em;
+  color: var(--sub);
+  line-height: 1.5;
+  white-space: pre-line;
+  min-height: 40px;
+}
+
 .lb-row{display:grid; grid-template-columns: 1.6fr 1fr; gap:10px; align-items:center;}
 .lb-list{display:flex; flex-direction:column; gap:10px;}
 

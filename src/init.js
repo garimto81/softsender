@@ -1,13 +1,47 @@
 function init(){
+  // 로딩 오버레이 표시
+  showLoading('🔧 초기화 중...', '서버 연결 중...');
+
+  // 서버에서 부트스트랩 정보 로드 (사용자별 저장된 Sheet ID 포함)
   google.script.run.withSuccessHandler(info=>{
+    updateLoading('✅ 서버 연결 완료', `사용자: ${info?.userEmail || 'Anonymous'}`);
+
     state.tz = info?.tz || 'Asia/Seoul';
+
+    // 서버에서 로드한 Sheet ID를 입력 필드에 설정
+    const serverCueId = info?.cueId || '';
+    const serverTypeId = info?.typeId || '';
+
+    updateLoading('📥 설정 로드 중...', `CUE ID: ${serverCueId ? '사용자 설정' : '기본값'}\nTYPE ID: ${serverTypeId ? '사용자 설정' : '기본값'}`);
+
+    if (serverCueId) {
+      document.getElementById('cueId').value = serverCueId;
+      localStorage.setItem(LS_KEYS.CUE, serverCueId);
+    }
+    if (serverTypeId) {
+      document.getElementById('typeId').value = serverTypeId;
+      localStorage.setItem(LS_KEYS.TYPE, serverTypeId);
+    }
+
+    state.cueId = serverCueId;
+    state.typeId = serverTypeId;
+    renderIdsHint();
+
     document.getElementById('footerInfo').textContent =
-      `기본 CUE: ${info?.cueId}  |  기본 TYPE: ${info?.typeId}  |  TZ=${state.tz}`;
-    setStatus('준비됨');
+      `로그인: ${info?.userEmail || 'Anonymous'}  |  기본 CUE: ${info?.defaultCueId?.substring(0, 8)}...  |  TZ=${state.tz}`;
+
+    updateLoading('📊 데이터 로드 중...', '시간 옵션 & 플레이어 정보 로딩...');
+
+    // Sheet ID 로드 후 데이터 로드
+    reloadSheets();
+  }).withFailureHandler(err => {
+    hideLoading();
+    toast('❌ 초기화 실패: ' + (err?.message || err), false);
+    setStatus('에러');
   }).getBootstrap();
 
+  // localStorage에서 임시 로드 (서버 응답 전 빠른 표시용)
   loadIdsFromLocal();
-  reloadSheets();
 
   document.getElementById('btnSaveIds').onclick = saveIds;
   document.getElementById('btnClearIds').onclick = clearIds;

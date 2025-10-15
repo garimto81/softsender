@@ -1,6 +1,6 @@
 <!--
   Soft Content Sender v11.0.0
-  Build Time: 2025-10-14T20:34:31.164Z
+  Build Time: 2025-10-15T18:20:18.987Z
   Build Mode: NORMAL
 
   ⚠️  AUTO-GENERATED FILE - DO NOT EDIT DIRECTLY
@@ -292,6 +292,60 @@ textarea{min-height: calc(var(--touch)*2.3); padding:14px var(--pad); white-spac
 #toast.show{opacity:1;transition:opacity .15s;}
 #toast.err{border-color:var(--err);color:#ffdada;}
 
+/* 로딩 오버레이 */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(11, 29, 20, 0.95);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  backdrop-filter: blur(4px);
+}
+
+.loading-content {
+  text-align: center;
+  padding: 40px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  max-width: 400px;
+  width: 90%;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  margin: 0 auto 20px;
+  border: 4px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-message {
+  font-size: 1.1em;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+
+.loading-details {
+  font-size: 0.9em;
+  color: var(--sub);
+  line-height: 1.5;
+  white-space: pre-line;
+  min-height: 40px;
+}
+
 .lb-row{display:grid; grid-template-columns: 1.6fr 1fr; gap:10px; align-items:center;}
 .lb-list{display:flex; flex-direction:column; gap:10px;}
 
@@ -445,6 +499,15 @@ details[open] > summary {
 
 <div id="toast"></div>
 
+<!-- 로딩 오버레이 -->
+<div id="loadingOverlay" class="loading-overlay">
+  <div class="loading-content">
+    <div class="spinner"></div>
+    <div id="loadingMessage" class="loading-message">로딩 중...</div>
+    <div id="loadingDetails" class="loading-details"></div>
+  </div>
+</div>
+
 <script>
   const LS_KEYS = { CUE:'SCS_CUE_ID', TYPE:'SCS_TYPE_ID' };
 
@@ -484,49 +547,126 @@ const state = {
 }
 function setStatus(s){ document.getElementById('status').textContent=s; }
 
-/* ===== Sheet ID 저장/초기화 ===== */
+/* ===== 로딩 오버레이 관리 ===== */
+function showLoading(message, details){
+  const overlay = document.getElementById('loadingOverlay');
+  const msgEl = document.getElementById('loadingMessage');
+  const detailsEl = document.getElementById('loadingDetails');
+
+  msgEl.textContent = message || '로딩 중...';
+  detailsEl.textContent = details || '';
+  overlay.style.display = 'flex';
+}
+
+function updateLoading(message, details){
+  const msgEl = document.getElementById('loadingMessage');
+  const detailsEl = document.getElementById('loadingDetails');
+
+  if (message) msgEl.textContent = message;
+  if (details) detailsEl.textContent = details;
+}
+
+function hideLoading(){
+  const overlay = document.getElementById('loadingOverlay');
+  overlay.style.display = 'none';
+}
+
+/* ===== Sheet ID 저장/초기화 (Properties Service 사용) ===== */
 function loadIdsFromLocal(){
-  const cue = localStorage.getItem(LS_KEYS.CUE) || '';
-  const type= localStorage.getItem(LS_KEYS.TYPE) || '';
-  if (cue) document.getElementById('cueId').value = cue;
-  if (type) document.getElementById('typeId').value = type;
-  state.cueId = cue;
-  state.typeId= type;
+  // 서버에서 사용자별 저장된 ID 로드 (localStorage는 백업용)
+  const localCue = localStorage.getItem(LS_KEYS.CUE) || '';
+  const localType = localStorage.getItem(LS_KEYS.TYPE) || '';
+
+  // 임시로 로컬 값 표시 (서버 응답 전)
+  if (localCue) document.getElementById('cueId').value = localCue;
+  if (localType) document.getElementById('typeId').value = localType;
+  state.cueId = localCue;
+  state.typeId = localType;
   renderIdsHint();
 }
+
 function saveIds(){
   const cue = document.getElementById('cueId').value.trim();
-  const type= document.getElementById('typeId').value.trim();
-  if (cue) localStorage.setItem(LS_KEYS.CUE, cue); else localStorage.removeItem(LS_KEYS.CUE);
-  if (type) localStorage.setItem(LS_KEYS.TYPE, type); else localStorage.removeItem(LS_KEYS.TYPE);
-  state.cueId = cue; state.typeId = type;
-  renderIdsHint();
-  toast('ID 저장 완료');
-  reloadSheets();
+  const type = document.getElementById('typeId').value.trim();
+
+  setStatus('저장 중…');
+
+  // 서버에 저장 (영구 저장)
+  google.script.run
+    .withSuccessHandler(res => {
+      if (res?.ok) {
+        // localStorage에도 백업 저장
+        if (cue) localStorage.setItem(LS_KEYS.CUE, cue); else localStorage.removeItem(LS_KEYS.CUE);
+        if (type) localStorage.setItem(LS_KEYS.TYPE, type); else localStorage.removeItem(LS_KEYS.TYPE);
+
+        state.cueId = cue;
+        state.typeId = type;
+        renderIdsHint();
+        toast('✅ ID 저장 완료 (서버에 영구 저장됨)');
+        setStatus('준비됨');
+        reloadSheets();
+      } else {
+        toast('❌ 저장 실패: ' + (res?.error || 'unknown'), false);
+        setStatus('에러');
+      }
+    })
+    .withFailureHandler(err => {
+      toast('❌ 서버 오류: ' + (err?.message || err), false);
+      setStatus('에러');
+    })
+    .saveUserPreference(cue, type);
 }
 
 // 자동 저장 함수 (입력 필드 변경 시)
 function autoSaveIds(){
   const cue = document.getElementById('cueId').value.trim();
-  const type= document.getElementById('typeId').value.trim();
+  const type = document.getElementById('typeId').value.trim();
 
-  // 입력값이 있으면 localStorage에 저장
+  // localStorage에 임시 저장
   if (cue) localStorage.setItem(LS_KEYS.CUE, cue); else localStorage.removeItem(LS_KEYS.CUE);
   if (type) localStorage.setItem(LS_KEYS.TYPE, type); else localStorage.removeItem(LS_KEYS.TYPE);
 
   state.cueId = cue;
   state.typeId = type;
   renderIdsHint();
+
+  // 서버에도 자동 저장 (비동기)
+  google.script.run
+    .withSuccessHandler(() => {
+      // 조용히 성공 (토스트 메시지 없음)
+    })
+    .saveUserPreference(cue, type);
 }
+
 function clearIds(){
-  localStorage.removeItem(LS_KEYS.CUE);
-  localStorage.removeItem(LS_KEYS.TYPE);
-  state.cueId=''; state.typeId='';
-  document.getElementById('cueId').value='';
-  document.getElementById('typeId').value='';
-  renderIdsHint();
-  toast('ID 초기화 완료(기본값 사용)');
-  reloadSheets();
+  setStatus('초기화 중…');
+
+  // 서버에서 삭제
+  google.script.run
+    .withSuccessHandler(res => {
+      if (res?.ok) {
+        // localStorage도 초기화
+        localStorage.removeItem(LS_KEYS.CUE);
+        localStorage.removeItem(LS_KEYS.TYPE);
+
+        state.cueId = '';
+        state.typeId = '';
+        document.getElementById('cueId').value = '';
+        document.getElementById('typeId').value = '';
+        renderIdsHint();
+        toast('✅ ID 초기화 완료 (기본값 사용)');
+        setStatus('준비됨');
+        reloadSheets();
+      } else {
+        toast('❌ 초기화 실패: ' + (res?.error || 'unknown'), false);
+        setStatus('에러');
+      }
+    })
+    .withFailureHandler(err => {
+      toast('❌ 서버 오류: ' + (err?.message || err), false);
+      setStatus('에러');
+    })
+    .clearUserPreference();
 }
 function renderIdsHint(){
   const c = state.cueId ? `CUE=${state.cueId}` : 'CUE=기본값';
@@ -751,11 +891,22 @@ function getSelectedPlayer(){
 /* ===== 데이터 재로드 ===== */
 function reloadSheets(){
   setStatus('시트 정보 로딩…');
+  updateLoading('⏰ 시간 옵션 로드 중...', 'CUE Sheet에서 시간 목록 불러오는 중...');
+
   google.script.run.withSuccessHandler(res=>{
-    if(res?.ok){ state.timeCenter = res.center || ''; fillTimes(res.list||[], res.center||''); rebuildFileName(); }
-    else toast('시간 목록 로딩 실패: '+(res?.error||'unknown'), false);
-    setStatus('준비됨');
+    if(res?.ok){
+      state.timeCenter = res.center || '';
+      fillTimes(res.list||[], res.center||'');
+      rebuildFileName();
+      updateLoading('✅ 시간 옵션 완료', `${res.list?.length || 0}개 시간 옵션 로드됨`);
+    }
+    else {
+      toast('시간 목록 로딩 실패: '+(res?.error||'unknown'), false);
+      updateLoading('❌ 시간 옵션 실패', res?.error || 'unknown');
+    }
   }).getTimeOptions(state.cueId || null);
+
+  updateLoading('👥 플레이어 정보 로드 중...', 'TYPE Sheet에서 플레이어 데이터 불러오는 중...');
 
   google.script.run.withSuccessHandler(res=>{
     if(res?.ok){
@@ -769,10 +920,21 @@ function reloadSheets(){
         console.log(`  - ${p.seat} ${p.player} (${p.room} Table ${p.tno})`);
       });
 
+      updateLoading('✅ 플레이어 정보 완료', `${state.typeRows.length}명 플레이어 로드됨 (⭐ ${keyPlayers.length}명 키 플레이어)`);
+
       indexTypeRows(state.typeRows);
       fillRoomTables();
     }
-    else toast('Type 탭 로딩 실패: '+(res?.error||'unknown'), false);
+    else {
+      toast('Type 탭 로딩 실패: '+(res?.error||'unknown'), false);
+      updateLoading('❌ 플레이어 정보 실패', res?.error || 'unknown');
+    }
+
+    // 모든 로딩 완료
+    setTimeout(() => {
+      hideLoading();
+      setStatus('준비됨');
+    }, 500);
   }).getTypeRows(state.typeId || null);
 }
 
@@ -835,7 +997,8 @@ function generateCurrentPreview() {
     const player = getSelectedPlayer();
     if (player) {
       const name = (player.player || '').toUpperCase();
-      body = `프로필 자막\n${name}`;
+      const country = (player.nat || '').toUpperCase();
+      body = `프로필 자막\n${name} / ${country}`;
     }
   }
 
@@ -1004,48 +1167,47 @@ function sendBatch() {
   const key = document.getElementById('selRoomTable').value;
   const tno = key ? key.split('|')[1] : '';
 
-  // 새 형식으로 파일명 생성: Batch_개수_시간
+  // 배치 파일명 생성 데이터
   const modeData = { count: state.batch.length };
 
+  const payload = {
+    autoNow,
+    pickedTime: picked,
+    tz: state.tz,
+    kind: 'BATCH',
+    eFix: '미완료',
+    gFix: 'SOFT',
+    playerName: 'Batch',
+    tableNo: tno,
+    hhmm,
+    modeData,
+    jBlock,
+    cueId: state.cueId || undefined
+  };
+
+  setStatus('전송 중…');
+
   google.script.run
-    .withSuccessHandler(filename => {
-      const payload = {
-        autoNow,
-        pickedTime: picked,
-        tz: state.tz,
-        kind: 'BATCH',
-        eFix: '미완료',
-        gFix: 'SOFT',
-        filename,
-        jBlock,
-        cueId: state.cueId || undefined
-      };
+    .withSuccessHandler(res => {
+      if (!res?.ok) {
+        toast('❌ 전송 실패: ' + (res?.error || 'unknown'), false);
+        setStatus('에러');
+        return;
+      }
 
-      setStatus('전송 중…');
+      toast(`✅ ${res.filename} - 행 ${res.row}(${res.time}) 저장 완료 (${state.batch.length}건, SC${String(res.scNumber).padStart(3, '0')})`, true);
+      setStatus('준비됨');
 
-      google.script.run
-        .withSuccessHandler(res => {
-          if (!res?.ok) {
-            toast('❌ 전송 실패: ' + (res?.error || 'unknown'), false);
-            setStatus('에러');
-            return;
-          }
-
-          toast(`✅ 배치 전송 완료! ${state.batch.length}건이 행 ${res.row}(${res.time})에 저장되었습니다.`, true);
-          setStatus('준비됨');
-
-          state.batch = [];
-          renderBatchList();
-          updateBatchPreview();
-          updateSendButton();
-        })
-        .withFailureHandler(err => {
-          toast('❌ 서버 오류: ' + (err?.message || err), false);
-          setStatus('에러');
-        })
-        .updateVirtual(payload);
+      state.batch = [];
+      renderBatchList();
+      updateBatchPreview();
+      updateSendButton();
     })
-    .buildFileName('BATCH', hhmm, tno, 'Batch', modeData);
+    .withFailureHandler(err => {
+      toast('❌ 서버 오류: ' + (err?.message || err), false);
+      setStatus('에러');
+    })
+    .updateVirtual(payload);
 }
 
 /* 스마트 전송 (단일/배치 자동 감지) */
@@ -1064,21 +1226,35 @@ function send(){
 function sendSingle() {
   const autoNow = document.getElementById('chkAuto').checked;
   const picked  = document.getElementById('selTime').value;
-  const filename= document.getElementById('fileName').value.trim();
   const jBlock  = generateCurrentPreview(); // 배치 미리보기 제외
 
   if(!jBlock){ toast('미리보기 내용이 비었습니다.', false); return; }
-  if(!filename){ toast('파일명 비어있음.', false); return; }
   if(state.mode===CONSTANTS.MODES.PU){
     if(!parseIntClean(document.getElementById('stackAmt').value) || !parseIntClean(document.getElementById('bigBlind').value)){
       toast('칩스택/빅블을 입력하세요.', false); return;
     }
   }
 
+  // 파일명 생성에 필요한 데이터 수집
+  const player = getSelectedPlayer();
+  const key = document.getElementById('selRoomTable').value;
+  const tno = key ? key.split('|')[1] : '';
+  const timeStr = autoNow ? state.timeCenter.slice(0,5) : picked;
+  const hhmm = hhmmFromTimeStr(timeStr);
+
+  let modeData = {};
+  if (state.mode === CONSTANTS.MODES.PU) {
+    const chipCount = parseIntClean(document.getElementById('stackAmt').value);
+    const bb = document.getElementById('stackBB').value;
+    modeData = { chipCount, bb };
+  } else if (state.mode === CONSTANTS.MODES.L3) {
+    modeData = { profileType: 'Profile' };
+  }
+
   setStatus('전송 중…');
   google.script.run.withSuccessHandler(res=>{
     if(!res?.ok){ toast('실패: '+(res?.error||'unknown'), false); setStatus('에러'); return; }
-    toast(`행 ${res.row}(${res.time}) 갱신 완료`);
+    toast(`✅ ${res.filename} - 행 ${res.row}(${res.time}) 저장 완료 (SC${String(res.scNumber).padStart(3, '0')})`);
     setStatus('준비됨');
   }).withFailureHandler(err=>{
     toast('서버 오류: '+(err?.message||err), false);
@@ -1090,7 +1266,10 @@ function sendSingle() {
     kind: state.mode,
     eFix: '미완료',
     gFix: 'SOFT',
-    filename,
+    playerName: player ? player.player : 'Player',
+    tableNo: tno,
+    hhmm,
+    modeData,
     jBlock,
     cueId: state.cueId || undefined
   });
@@ -1120,15 +1299,49 @@ function setMode(m){
 }
 
   function init(){
+  // 로딩 오버레이 표시
+  showLoading('🔧 초기화 중...', '서버 연결 중...');
+
+  // 서버에서 부트스트랩 정보 로드 (사용자별 저장된 Sheet ID 포함)
   google.script.run.withSuccessHandler(info=>{
+    updateLoading('✅ 서버 연결 완료', `사용자: ${info?.userEmail || 'Anonymous'}`);
+
     state.tz = info?.tz || 'Asia/Seoul';
+
+    // 서버에서 로드한 Sheet ID를 입력 필드에 설정
+    const serverCueId = info?.cueId || '';
+    const serverTypeId = info?.typeId || '';
+
+    updateLoading('📥 설정 로드 중...', `CUE ID: ${serverCueId ? '사용자 설정' : '기본값'}\nTYPE ID: ${serverTypeId ? '사용자 설정' : '기본값'}`);
+
+    if (serverCueId) {
+      document.getElementById('cueId').value = serverCueId;
+      localStorage.setItem(LS_KEYS.CUE, serverCueId);
+    }
+    if (serverTypeId) {
+      document.getElementById('typeId').value = serverTypeId;
+      localStorage.setItem(LS_KEYS.TYPE, serverTypeId);
+    }
+
+    state.cueId = serverCueId;
+    state.typeId = serverTypeId;
+    renderIdsHint();
+
     document.getElementById('footerInfo').textContent =
-      `기본 CUE: ${info?.cueId}  |  기본 TYPE: ${info?.typeId}  |  TZ=${state.tz}`;
-    setStatus('준비됨');
+      `로그인: ${info?.userEmail || 'Anonymous'}  |  기본 CUE: ${info?.defaultCueId?.substring(0, 8)}...  |  TZ=${state.tz}`;
+
+    updateLoading('📊 데이터 로드 중...', '시간 옵션 & 플레이어 정보 로딩...');
+
+    // Sheet ID 로드 후 데이터 로드
+    reloadSheets();
+  }).withFailureHandler(err => {
+    hideLoading();
+    toast('❌ 초기화 실패: ' + (err?.message || err), false);
+    setStatus('에러');
   }).getBootstrap();
 
+  // localStorage에서 임시 로드 (서버 응답 전 빠른 표시용)
   loadIdsFromLocal();
-  reloadSheets();
 
   document.getElementById('btnSaveIds').onclick = saveIds;
   document.getElementById('btnClearIds').onclick = clearIds;

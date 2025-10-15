@@ -5,49 +5,126 @@ function toast(msg, ok=true){
 }
 function setStatus(s){ document.getElementById('status').textContent=s; }
 
-/* ===== Sheet ID 저장/초기화 ===== */
+/* ===== 로딩 오버레이 관리 ===== */
+function showLoading(message, details){
+  const overlay = document.getElementById('loadingOverlay');
+  const msgEl = document.getElementById('loadingMessage');
+  const detailsEl = document.getElementById('loadingDetails');
+
+  msgEl.textContent = message || '로딩 중...';
+  detailsEl.textContent = details || '';
+  overlay.style.display = 'flex';
+}
+
+function updateLoading(message, details){
+  const msgEl = document.getElementById('loadingMessage');
+  const detailsEl = document.getElementById('loadingDetails');
+
+  if (message) msgEl.textContent = message;
+  if (details) detailsEl.textContent = details;
+}
+
+function hideLoading(){
+  const overlay = document.getElementById('loadingOverlay');
+  overlay.style.display = 'none';
+}
+
+/* ===== Sheet ID 저장/초기화 (Properties Service 사용) ===== */
 function loadIdsFromLocal(){
-  const cue = localStorage.getItem(LS_KEYS.CUE) || '';
-  const type= localStorage.getItem(LS_KEYS.TYPE) || '';
-  if (cue) document.getElementById('cueId').value = cue;
-  if (type) document.getElementById('typeId').value = type;
-  state.cueId = cue;
-  state.typeId= type;
+  // 서버에서 사용자별 저장된 ID 로드 (localStorage는 백업용)
+  const localCue = localStorage.getItem(LS_KEYS.CUE) || '';
+  const localType = localStorage.getItem(LS_KEYS.TYPE) || '';
+
+  // 임시로 로컬 값 표시 (서버 응답 전)
+  if (localCue) document.getElementById('cueId').value = localCue;
+  if (localType) document.getElementById('typeId').value = localType;
+  state.cueId = localCue;
+  state.typeId = localType;
   renderIdsHint();
 }
+
 function saveIds(){
   const cue = document.getElementById('cueId').value.trim();
-  const type= document.getElementById('typeId').value.trim();
-  if (cue) localStorage.setItem(LS_KEYS.CUE, cue); else localStorage.removeItem(LS_KEYS.CUE);
-  if (type) localStorage.setItem(LS_KEYS.TYPE, type); else localStorage.removeItem(LS_KEYS.TYPE);
-  state.cueId = cue; state.typeId = type;
-  renderIdsHint();
-  toast('ID 저장 완료');
-  reloadSheets();
+  const type = document.getElementById('typeId').value.trim();
+
+  setStatus('저장 중…');
+
+  // 서버에 저장 (영구 저장)
+  google.script.run
+    .withSuccessHandler(res => {
+      if (res?.ok) {
+        // localStorage에도 백업 저장
+        if (cue) localStorage.setItem(LS_KEYS.CUE, cue); else localStorage.removeItem(LS_KEYS.CUE);
+        if (type) localStorage.setItem(LS_KEYS.TYPE, type); else localStorage.removeItem(LS_KEYS.TYPE);
+
+        state.cueId = cue;
+        state.typeId = type;
+        renderIdsHint();
+        toast('✅ ID 저장 완료 (서버에 영구 저장됨)');
+        setStatus('준비됨');
+        reloadSheets();
+      } else {
+        toast('❌ 저장 실패: ' + (res?.error || 'unknown'), false);
+        setStatus('에러');
+      }
+    })
+    .withFailureHandler(err => {
+      toast('❌ 서버 오류: ' + (err?.message || err), false);
+      setStatus('에러');
+    })
+    .saveUserPreference(cue, type);
 }
 
 // 자동 저장 함수 (입력 필드 변경 시)
 function autoSaveIds(){
   const cue = document.getElementById('cueId').value.trim();
-  const type= document.getElementById('typeId').value.trim();
+  const type = document.getElementById('typeId').value.trim();
 
-  // 입력값이 있으면 localStorage에 저장
+  // localStorage에 임시 저장
   if (cue) localStorage.setItem(LS_KEYS.CUE, cue); else localStorage.removeItem(LS_KEYS.CUE);
   if (type) localStorage.setItem(LS_KEYS.TYPE, type); else localStorage.removeItem(LS_KEYS.TYPE);
 
   state.cueId = cue;
   state.typeId = type;
   renderIdsHint();
+
+  // 서버에도 자동 저장 (비동기)
+  google.script.run
+    .withSuccessHandler(() => {
+      // 조용히 성공 (토스트 메시지 없음)
+    })
+    .saveUserPreference(cue, type);
 }
+
 function clearIds(){
-  localStorage.removeItem(LS_KEYS.CUE);
-  localStorage.removeItem(LS_KEYS.TYPE);
-  state.cueId=''; state.typeId='';
-  document.getElementById('cueId').value='';
-  document.getElementById('typeId').value='';
-  renderIdsHint();
-  toast('ID 초기화 완료(기본값 사용)');
-  reloadSheets();
+  setStatus('초기화 중…');
+
+  // 서버에서 삭제
+  google.script.run
+    .withSuccessHandler(res => {
+      if (res?.ok) {
+        // localStorage도 초기화
+        localStorage.removeItem(LS_KEYS.CUE);
+        localStorage.removeItem(LS_KEYS.TYPE);
+
+        state.cueId = '';
+        state.typeId = '';
+        document.getElementById('cueId').value = '';
+        document.getElementById('typeId').value = '';
+        renderIdsHint();
+        toast('✅ ID 초기화 완료 (기본값 사용)');
+        setStatus('준비됨');
+        reloadSheets();
+      } else {
+        toast('❌ 초기화 실패: ' + (res?.error || 'unknown'), false);
+        setStatus('에러');
+      }
+    })
+    .withFailureHandler(err => {
+      toast('❌ 서버 오류: ' + (err?.message || err), false);
+      setStatus('에러');
+    })
+    .clearUserPreference();
 }
 function renderIdsHint(){
   const c = state.cueId ? `CUE=${state.cueId}` : 'CUE=기본값';
@@ -272,11 +349,22 @@ function getSelectedPlayer(){
 /* ===== 데이터 재로드 ===== */
 function reloadSheets(){
   setStatus('시트 정보 로딩…');
+  updateLoading('⏰ 시간 옵션 로드 중...', 'CUE Sheet에서 시간 목록 불러오는 중...');
+
   google.script.run.withSuccessHandler(res=>{
-    if(res?.ok){ state.timeCenter = res.center || ''; fillTimes(res.list||[], res.center||''); rebuildFileName(); }
-    else toast('시간 목록 로딩 실패: '+(res?.error||'unknown'), false);
-    setStatus('준비됨');
+    if(res?.ok){
+      state.timeCenter = res.center || '';
+      fillTimes(res.list||[], res.center||'');
+      rebuildFileName();
+      updateLoading('✅ 시간 옵션 완료', `${res.list?.length || 0}개 시간 옵션 로드됨`);
+    }
+    else {
+      toast('시간 목록 로딩 실패: '+(res?.error||'unknown'), false);
+      updateLoading('❌ 시간 옵션 실패', res?.error || 'unknown');
+    }
   }).getTimeOptions(state.cueId || null);
+
+  updateLoading('👥 플레이어 정보 로드 중...', 'TYPE Sheet에서 플레이어 데이터 불러오는 중...');
 
   google.script.run.withSuccessHandler(res=>{
     if(res?.ok){
@@ -290,9 +378,20 @@ function reloadSheets(){
         console.log(`  - ${p.seat} ${p.player} (${p.room} Table ${p.tno})`);
       });
 
+      updateLoading('✅ 플레이어 정보 완료', `${state.typeRows.length}명 플레이어 로드됨 (⭐ ${keyPlayers.length}명 키 플레이어)`);
+
       indexTypeRows(state.typeRows);
       fillRoomTables();
     }
-    else toast('Type 탭 로딩 실패: '+(res?.error||'unknown'), false);
+    else {
+      toast('Type 탭 로딩 실패: '+(res?.error||'unknown'), false);
+      updateLoading('❌ 플레이어 정보 실패', res?.error || 'unknown');
+    }
+
+    // 모든 로딩 완료
+    setTimeout(() => {
+      hideLoading();
+      setStatus('준비됨');
+    }, 500);
   }).getTypeRows(state.typeId || null);
 }
