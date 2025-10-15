@@ -83,6 +83,31 @@ function clearUserPreference() {
     return { ok: false, error: String(e) };
   }
 }
+// ===== Cache 레이어: Type Rows 캐싱 (5분 TTL) =====
+function getCachedTypeRows(typeIdOverride) {
+  const typeId = String(typeIdOverride || CFG.TYPE_SHEET_ID).trim();
+  const cache = CacheService.getScriptCache();
+  const key = 'TYPE_ROWS_' + typeId;
+
+  // 캐시 확인
+  const cached = cache.get(key);
+  if (cached) {
+    Logger.log('✅ Cache HIT - Type Rows');
+    return JSON.parse(cached);
+  }
+
+  // 캐시 미스 - Sheets에서 로드
+  Logger.log('❌ Cache MISS - Loading from Sheets');
+  const result = getTypeRows(typeIdOverride);
+
+  if (result.ok) {
+    // 5분(300초) 캐싱
+    cache.put(key, JSON.stringify(result), 300);
+  }
+
+  return result;
+}
+
 function getTypeRows(typeIdOverride) {
   try {
 
@@ -305,18 +330,29 @@ function updateVirtual(payload) {
     if (!fVal) throw new Error('EMPTY_FILENAME');
     if (!jBlock) throw new Error('EMPTY_JBLOCK');
 
-    const jCell = sh.getRange(row, 10); // J
-    let cur = jCell.getValue();
-    cur = cur ? String(cur).replace(/\r\n/g,'\n') : '';
-    const needsLF = cur && !cur.endsWith('\n') ? '\n' : '';
-    const glue = cur ? (needsLF + '\n') : '';
-    const next = cur + glue + jBlock;
+    // ===== Batch API 최적화: 1회 읽기 + 1회 쓰기 =====
+    // 기존: 5번 개별 호출 (getRange × 5)
+    // 개선: 1번 읽기 + 1번 쓰기
 
-    sh.getRange(row,5).setValue(eVal);  // E
-    sh.getRange(row,6).setValue(fVal);  // F
-    sh.getRange(row,7).setValue(gVal);  // G
-    jCell.setValue(next);               // J
-    sh.getRange(row,11).setValue('소프트 콘텐츠');  // K (11번째 컬럼)
+    const existingRow = sh.getRange(row, 1, 1, 11).getValues()[0];
+
+    // J열 기존 내용 병합
+    let jCurrent = existingRow[9] ? String(existingRow[9]).replace(/\r\n/g,'\n') : '';
+    const needsLF = jCurrent && !jCurrent.endsWith('\n') ? '\n' : '';
+    const glue = jCurrent ? (needsLF + '\n') : '';
+    const jNew = jCurrent + glue + jBlock;
+
+    // 업데이트할 행 준비
+    const updatedRow = [...existingRow];
+    updatedRow[4] = eVal;              // E (5번째 컬럼, 인덱스 4)
+    updatedRow[5] = fVal;              // F
+    updatedRow[6] = gVal;              // G
+    updatedRow[9] = jNew;              // J
+    updatedRow[10] = '소프트 콘텐츠';   // K
+
+    // 1회 배치 쓰기
+    sh.getRange(row, 1, 1, 11).setValues([updatedRow]);
+
     return { ok:true, row, time:pickedStr, filename: fVal, scNumber };
   } catch(e) {
 

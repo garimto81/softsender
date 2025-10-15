@@ -1,6 +1,6 @@
 <!--
   Soft Content Sender v11.0.0
-  Build Time: 2025-10-15T18:20:18.987Z
+  Build Time: 2025-10-15T19:31:17.952Z
   Build Mode: NORMAL
 
   ⚠️  AUTO-GENERATED FILE - DO NOT EDIT DIRECTLY
@@ -1024,6 +1024,351 @@ function updateBatchPreview() {
   }
 }
 
+  // ===== Optimistic UI: IndexedDB 동기화 큐 =====
+// 목적: 즉시 UI 피드백 + 백그라운드 Sheets 동기화
+
+const SYNC_DB_NAME = 'SoftSenderQueue';
+const SYNC_DB_VERSION = 1;
+const SYNC_STORE_NAME = 'queue';
+
+// IndexedDB 초기화
+async function initSyncDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(SYNC_DB_NAME, SYNC_DB_VERSION);
+
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains(SYNC_STORE_NAME)) {
+        const store = db.createObjectStore(SYNC_STORE_NAME, { keyPath: 'id' });
+        store.createIndex('status', 'status', { unique: false });
+        store.createIndex('timestamp', 'timestamp', { unique: false });
+        console.log('✅ IndexedDB 동기화 큐 생성 완료');
+      }
+    };
+  });
+}
+
+// 동기화 큐에 추가
+async function addToSyncQueue(item) {
+  const db = await initSyncDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(SYNC_STORE_NAME, 'readwrite');
+    const store = tx.objectStore(SYNC_STORE_NAME);
+    const request = store.put(item);
+
+    request.onsuccess = () => {
+      console.log(`✅ 큐 추가: ID=${item.id}, 상태=${item.status}`);
+      resolve(item.id);
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+// 동기화 큐 업데이트
+async function updateSyncQueue(id, status, result = null) {
+  const db = await initSyncDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(SYNC_STORE_NAME, 'readwrite');
+    const store = tx.objectStore(SYNC_STORE_NAME);
+    const getRequest = store.get(id);
+
+    getRequest.onsuccess = () => {
+      const item = getRequest.result;
+      if (item) {
+        item.status = status;
+        item.result = result;
+        item.updatedAt = Date.now();
+
+        const putRequest = store.put(item);
+        putRequest.onsuccess = () => {
+          console.log(`✅ 큐 업데이트: ID=${id}, 상태=${status}`);
+          resolve();
+        };
+        putRequest.onerror = () => reject(putRequest.error);
+      } else {
+        reject(new Error(`Item not found: ${id}`));
+      }
+    };
+    getRequest.onerror = () => reject(getRequest.error);
+  });
+}
+
+// 동기화 큐 조회 (단일)
+async function getSyncQueueItem(id) {
+  const db = await initSyncDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(SYNC_STORE_NAME, 'readonly');
+    const store = tx.objectStore(SYNC_STORE_NAME);
+    const request = store.get(id);
+
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+// 동기화 큐 전체 조회
+async function getAllSyncQueue() {
+  const db = await initSyncDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(SYNC_STORE_NAME, 'readonly');
+    const store = tx.objectStore(SYNC_STORE_NAME);
+    const request = store.getAll();
+
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+// 실패한 항목 조회
+async function getFailedSyncItems() {
+  const db = await initSyncDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(SYNC_STORE_NAME, 'readonly');
+    const store = tx.objectStore(SYNC_STORE_NAME);
+    const index = store.index('status');
+    const request = index.getAll('failed');
+
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+// 동기화 큐 삭제
+async function removeSyncQueueItem(id) {
+  const db = await initSyncDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(SYNC_STORE_NAME, 'readwrite');
+    const store = tx.objectStore(SYNC_STORE_NAME);
+    const request = store.delete(id);
+
+    request.onsuccess = () => {
+      console.log(`✅ 큐 삭제: ID=${id}`);
+      resolve();
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+// 오래된 항목 정리 (24시간 이상)
+async function cleanupOldSyncQueue() {
+  const items = await getAllSyncQueue();
+  const now = Date.now();
+  const cutoff = 24 * 60 * 60 * 1000; // 24시간
+
+  for (const item of items) {
+    if (item.status === 'success' && (now - item.timestamp > cutoff)) {
+      await removeSyncQueueItem(item.id);
+    }
+  }
+
+  console.log('✅ 동기화 큐 정리 완료');
+}
+
+// 앱 시작 시 초기화
+(async function() {
+  try {
+    await initSyncDB();
+    await cleanupOldSyncQueue();
+    console.log('✅ 동기화 시스템 초기화 완료');
+  } catch(e) {
+    console.error('❌ 동기화 시스템 초기화 실패:', e);
+  }
+})();
+
+  // ===== Optimistic UI: 즉시 피드백 + 백그라운드 동기화 =====
+
+// 재시도 설정
+const RETRY_MAX_ATTEMPTS = 3;
+const RETRY_BASE_DELAY = 2000; // 2초
+
+// Optimistic UI로 전송 (즉시 피드백)
+async function sendWithOptimisticUI(payload) {
+  const tempId = Date.now();
+
+  try {
+    // 1. 즉시 UI 피드백 (0.1초 이내)
+    toast('✅ 전송 중...', true);
+    showLoadingOverlay('서버 전송 중...', true);
+
+    // 2. 로컬 큐에 추가
+    await addToSyncQueue({
+      id: tempId,
+      payload: payload,
+      status: 'pending',
+      timestamp: Date.now(),
+      attempts: 0
+    });
+
+    // 3. 백그라운드 동기화 시작
+    syncToServer(tempId, payload);
+
+    // 4. 즉시 다음 작업 허용 (사용자는 기다리지 않음)
+    setTimeout(() => {
+      hideLoadingOverlay();
+      toast('📤 백그라운드 동기화 중...', true);
+    }, 300);
+
+  } catch(e) {
+    console.error('❌ Optimistic UI 실패:', e);
+    hideLoadingOverlay();
+    toast('❌ 전송 실패 - 재시도하세요', false);
+  }
+}
+
+// 서버 동기화 (비동기)
+function syncToServer(id, payload, attempt = 1) {
+  console.log(`🔄 서버 동기화 시작: ID=${id}, 시도=${attempt}/${RETRY_MAX_ATTEMPTS}`);
+
+  google.script.run
+    .withSuccessHandler(async (res) => {
+      if (res.ok) {
+        // 성공
+        await updateSyncQueue(id, 'success', res);
+        console.log(`✅ 동기화 성공: ${res.filename}`);
+        toast(`✅ 저장 완료: ${res.filename}`, true);
+
+        // 성공한 항목은 10초 후 삭제
+        setTimeout(() => removeSyncQueueItem(id), 10000);
+      } else {
+        // 서버 에러
+        console.error(`⚠️ 서버 에러: ${res.error}`);
+        await handleSyncFailure(id, payload, attempt, res.error);
+      }
+    })
+    .withFailureHandler(async (err) => {
+      // 네트워크 에러
+      console.error(`❌ 네트워크 에러:`, err);
+      await handleSyncFailure(id, payload, attempt, String(err));
+    })
+    .updateVirtual(payload);
+}
+
+// 동기화 실패 처리
+async function handleSyncFailure(id, payload, attempt, errorMsg) {
+  if (attempt < RETRY_MAX_ATTEMPTS) {
+    // 재시도
+    await updateSyncQueue(id, 'retrying', { attempt, error: errorMsg });
+
+    const delay = RETRY_BASE_DELAY * Math.pow(2, attempt - 1); // 지수 백오프
+    console.log(`🔄 ${delay/1000}초 후 재시도 (${attempt + 1}/${RETRY_MAX_ATTEMPTS})`);
+
+    toast(`🔄 재시도 ${attempt}/${RETRY_MAX_ATTEMPTS} 대기 중...`, true);
+
+    setTimeout(() => {
+      syncToServer(id, payload, attempt + 1);
+    }, delay);
+  } else {
+    // 최종 실패
+    await updateSyncQueue(id, 'failed', {
+      attempt,
+      error: errorMsg,
+      finalError: '최대 재시도 횟수 초과'
+    });
+
+    console.error(`❌ 최종 실패: ID=${id}`);
+    toast(`❌ 전송 실패 (ID: ${id}) - 수동 재전송 필요`, false);
+
+    // 실패 알림 UI 표시
+    showFailedSyncNotification(id, payload);
+  }
+}
+
+// 실패한 동기화 알림 UI
+function showFailedSyncNotification(id, payload) {
+  const notification = document.createElement('div');
+  notification.style.cssText = `
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--error-bg);
+    color: var(--error-color);
+    padding: 12px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    z-index: 10000;
+    max-width: 90%;
+    text-align: center;
+  `;
+
+  notification.innerHTML = `
+    <div style="margin-bottom: 8px;">
+      ⚠️ 전송 실패 (ID: ${id})
+    </div>
+    <button onclick="retrySyncManually(${id})" style="
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-right: 8px;
+    ">
+      🔄 재시도
+    </button>
+    <button onclick="dismissFailedSync(${id}, this.parentElement.parentElement)" style="
+      background: #666;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+    ">
+      무시
+    </button>
+  `;
+
+  document.body.appendChild(notification);
+
+  // 30초 후 자동 제거
+  setTimeout(() => {
+    if (notification.parentElement) {
+      notification.remove();
+    }
+  }, 30000);
+}
+
+// 수동 재시도
+window.retrySyncManually = async function(id) {
+  const item = await getSyncQueueItem(id);
+  if (item) {
+    toast('🔄 재시도 중...', true);
+    syncToServer(id, item.payload, 1);
+  } else {
+    toast('❌ 항목을 찾을 수 없습니다', false);
+  }
+};
+
+// 실패 알림 무시
+window.dismissFailedSync = async function(id, element) {
+  await removeSyncQueueItem(id);
+  element.remove();
+  toast('알림 제거됨', true);
+};
+
+// 앱 시작 시 실패한 항목 복구
+(async function() {
+  try {
+    const failedItems = await getFailedSyncItems();
+    if (failedItems.length > 0) {
+      console.log(`⚠️ 실패한 동기화 ${failedItems.length}건 발견`);
+
+      // 사용자에게 알림
+      toast(`⚠️ 실패한 전송 ${failedItems.length}건 - 재시도 가능`, false);
+
+      // 각 실패 항목에 대한 알림 표시
+      failedItems.forEach(item => {
+        showFailedSyncNotification(item.id, item.payload);
+      });
+    }
+  } catch(e) {
+    console.error('❌ 실패 항목 복구 실패:', e);
+  }
+})();
+
   /* ===== 배치 빌더 (스마트 통합) ===== */
 
 // 스마트 전송 버튼 업데이트
@@ -1251,15 +1596,8 @@ function sendSingle() {
     modeData = { profileType: 'Profile' };
   }
 
-  setStatus('전송 중…');
-  google.script.run.withSuccessHandler(res=>{
-    if(!res?.ok){ toast('실패: '+(res?.error||'unknown'), false); setStatus('에러'); return; }
-    toast(`✅ ${res.filename} - 행 ${res.row}(${res.time}) 저장 완료 (SC${String(res.scNumber).padStart(3, '0')})`);
-    setStatus('준비됨');
-  }).withFailureHandler(err=>{
-    toast('서버 오류: '+(err?.message||err), false);
-    setStatus('에러');
-  }).updateVirtual({
+  // ===== Optimistic UI 적용: 즉시 피드백 =====
+  const payload = {
     autoNow,
     pickedTime: picked,
     tz: state.tz,
@@ -1272,7 +1610,23 @@ function sendSingle() {
     modeData,
     jBlock,
     cueId: state.cueId || undefined
-  });
+  };
+
+  // Optimistic UI 사용 (즉시 피드백 + 백그라운드 동기화)
+  if (typeof sendWithOptimisticUI === 'function') {
+    sendWithOptimisticUI(payload);
+  } else {
+    // Fallback: 기존 방식 (동기)
+    setStatus('전송 중…');
+    google.script.run.withSuccessHandler(res=>{
+      if(!res?.ok){ toast('실패: '+(res?.error||'unknown'), false); setStatus('에러'); return; }
+      toast(`✅ ${res.filename} - 행 ${res.row}(${res.time}) 저장 완료 (SC${String(res.scNumber).padStart(3, '0')})`);
+      setStatus('준비됨');
+    }).withFailureHandler(err=>{
+      toast('서버 오류: '+(err?.message||err), false);
+      setStatus('에러');
+    }).updateVirtual(payload);
+  }
 }
 
   // 모드 변경

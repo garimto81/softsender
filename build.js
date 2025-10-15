@@ -28,6 +28,8 @@ function build() {
   const constants = readSource('constants.js');
   const utils = readSource('utils.js');
   const preview = readSource('preview.js');
+  const syncQueue = readSource('sync-queue.js');
+  const optimisticUI = readSource('optimistic-ui.js');
   const batch = readSource('batch.js');
   const events = readSource('events.js');
   const init = readSource('init.js');
@@ -39,6 +41,8 @@ function build() {
     .replace('// INJECT:CONSTANTS', constants)
     .replace('// INJECT:UTILS', utils)
     .replace('// INJECT:PREVIEW', preview)
+    .replace('// INJECT:SYNC_QUEUE', syncQueue)
+    .replace('// INJECT:OPTIMISTIC_UI', optimisticUI)
     .replace('// INJECT:BATCH', batch)
     .replace('// INJECT:EVENTS', events)
     .replace('// INJECT:INIT', init);
