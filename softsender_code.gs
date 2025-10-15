@@ -316,6 +316,7 @@ function updateVirtual(payload) {
     sh.getRange(row,6).setValue(fVal);  // F
     sh.getRange(row,7).setValue(gVal);  // G
     jCell.setValue(next);               // J
+    sh.getRange(row,11).setValue('소프트 콘텐츠');  // K (11번째 컬럼)
     return { ok:true, row, time:pickedStr, filename: fVal, scNumber };
   } catch(e) {
 
