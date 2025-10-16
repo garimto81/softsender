@@ -158,6 +158,14 @@ function indexTypeRows(rows){
     if (a.room !== b.room) return a.room.localeCompare(b.room);
     return Number(a.tno) - Number(b.tno);
   });
+
+  // 디버깅: 테이블 목록 확인
+  console.log('📊 indexTypeRows 완료 - 테이블 개수:', state.tableList.length);
+  const tableNumbers = state.tableList.map(t => Number(t.tno)).filter(n => !isNaN(n)).sort((a, b) => a - b);
+  if (tableNumbers.length > 0) {
+    console.log(`📊 테이블 번호 범위: ${tableNumbers[0]} ~ ${tableNumbers[tableNumbers.length - 1]}`);
+    console.log('📊 테이블 목록:', state.tableList.map(t => `Table ${t.tno}`).join(', '));
+  }
 }
 function normSeat(s){
   const t = String(s||'').trim();

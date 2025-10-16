@@ -246,6 +246,21 @@ function getTypeRows(typeIdOverride) {
     const keyPlayerCount = rows.filter(r => r.keyPlayer).length;
     Logger.log(`✅ 최종 결과: 전체 ${rows.length}행 중 KeyPlayer=${keyPlayerCount}개`);
 
+    // 디버깅: 테이블 번호별 통계
+    const tableStats = {};
+    rows.forEach(r => {
+      const key = `${r.room}|Table ${r.tno}`;
+      tableStats[key] = (tableStats[key] || 0) + 1;
+    });
+    const tableNumbers = Object.keys(tableStats)
+      .map(key => key.split('|')[1].replace('Table ', ''))
+      .map(Number)
+      .filter(n => !isNaN(n))
+      .sort((a, b) => a - b);
+    Logger.log(`📊 테이블 번호 범위: ${tableNumbers[0]} ~ ${tableNumbers[tableNumbers.length - 1]}`);
+    Logger.log(`📊 테이블 개수: ${Object.keys(tableStats).length}개`);
+    Logger.log(`📊 테이블 목록:`, Object.keys(tableStats).sort());
+
     return { ok: true, headers, rows, typeId };
   } catch(e) {
 
