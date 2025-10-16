@@ -157,7 +157,9 @@ function getCachedTypeRows(typeIdOverride) {
   const cached = cache.get(key);
   if (cached) {
     Logger.log('✅ Cache HIT - Type Rows');
-    return JSON.parse(cached);
+    const parsed = JSON.parse(cached);
+    Logger.log(`📦 캐시된 데이터: ${parsed.rows?.length || 0}행`);
+    return parsed;
   }
 
   // 캐시 미스 - Sheets에서 로드
@@ -165,8 +167,24 @@ function getCachedTypeRows(typeIdOverride) {
   const result = getTypeRows(typeIdOverride);
 
   if (result.ok) {
-    // 5분(300초) 캐싱
-    cache.put(key, JSON.stringify(result), 300);
+    // 5분(300초) 캐싱 시도
+    const jsonStr = JSON.stringify(result);
+    const sizeKB = (jsonStr.length / 1024).toFixed(2);
+    Logger.log(`📦 캐싱 시도: ${result.rows?.length || 0}행, 크기=${sizeKB}KB`);
+
+    // CacheService 크기 제한: 100KB
+    if (jsonStr.length > 100 * 1024) {
+      Logger.log(`⚠️ 캐시 크기 초과 (${sizeKB}KB > 100KB) - 캐싱 비활성화`);
+      // 캐시 불가 - 직접 반환
+      return result;
+    }
+
+    try {
+      cache.put(key, jsonStr, 300);
+      Logger.log(`✅ 캐싱 성공: ${sizeKB}KB`);
+    } catch(e) {
+      Logger.log(`❌ 캐싱 실패: ${e.message}`);
+    }
   }
 
   return result;
@@ -190,6 +208,7 @@ function getTypeRows(typeIdOverride) {
     // 디버깅: 헤더 출력
     Logger.log('📊 Google Sheets 헤더:', headers);
     Logger.log('📊 전체 컬럼 수:', headers.length);
+    Logger.log(`📊 원본 행 수: ${values.length - 1}행 (헤더 제외)`);
 
     // Seats.csv 구조 기반 헤더 매핑
     const iRoom      = idx('PokerRoom');
@@ -261,7 +280,17 @@ function getTypeRows(typeIdOverride) {
     Logger.log(`📊 테이블 개수: ${Object.keys(tableStats).length}개`);
     Logger.log(`📊 테이블 목록:`, Object.keys(tableStats).sort());
 
-    return { ok: true, headers, rows, typeId };
+    // 최종 반환 객체 크기 측정
+    const finalResult = { ok: true, headers, rows, typeId };
+    const finalSize = JSON.stringify(finalResult).length;
+    const finalSizeKB = (finalSize / 1024).toFixed(2);
+    Logger.log(`📦 반환 데이터 크기: ${finalSizeKB}KB (${finalSize} bytes)`);
+
+    if (finalSize > 100 * 1024) {
+      Logger.log(`⚠️ 경고: 데이터 크기가 CacheService 한도(100KB)를 초과했습니다!`);
+    }
+
+    return finalResult;
   } catch(e) {
 
     const safeError = e.message || String(e);

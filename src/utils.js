@@ -376,6 +376,12 @@ function reloadSheets(){
 
   google.script.run.withSuccessHandler(res=>{
     if(res?.ok){
+      // 🔍 수신 데이터 크기 측정
+      const dataSize = JSON.stringify(res).length;
+      const dataSizeKB = (dataSize / 1024).toFixed(2);
+      console.log(`📦 클라이언트 수신 데이터: ${dataSizeKB}KB (${dataSize} bytes)`);
+      console.log(`📦 수신된 행 수: ${res.rows?.length || 0}행`);
+
       state.typeRows = res.rows||[];
 
       // 디버깅: KeyPlayer 데이터 확인
@@ -385,6 +391,17 @@ function reloadSheets(){
       keyPlayers.forEach(p => {
         console.log(`  - ${p.seat} ${p.player} (${p.room} Table ${p.tno})`);
       });
+
+      // 🔍 테이블별 행 개수 확인
+      const tableCount = {};
+      res.rows.forEach(r => {
+        const tno = r.tno;
+        tableCount[tno] = (tableCount[tno] || 0) + 1;
+      });
+      const tableNumbers = Object.keys(tableCount).map(Number).sort((a, b) => a - b);
+      console.log(`📊 수신된 테이블 번호 범위: ${tableNumbers[0]} ~ ${tableNumbers[tableNumbers.length - 1]}`);
+      console.log(`📊 수신된 테이블 개수: ${tableNumbers.length}개`);
+      console.log(`📊 테이블별 행 수:`, tableCount);
 
       updateLoading('✅ 플레이어 정보 완료', `${state.typeRows.length}명 플레이어 로드됨 (⭐ ${keyPlayers.length}명 키 플레이어)`);
 
