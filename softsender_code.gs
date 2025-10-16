@@ -44,39 +44,35 @@ function testUpdateVirtual() {
 }
 
 function testGetNextSCNumber() {
-  Logger.log('🧪 [TEST] getNextSCNumber 성능 테스트 시작');
-  const startTotal = new Date().getTime();
-  const result = getNextSCNumber(CFG.CUE_SHEET_ID);
-  const endTotal = new Date().getTime();
-  Logger.log(`🧪 [RESULT] 전체 소요시간: ${endTotal - startTotal}ms`);
-  Logger.log('🧪 [RESULT] 다음 번호:', result);
-  return result;
-}
-
-function testCachedSCNumber() {
-  Logger.log('🧪 [TEST] getCachedSCNumber 성능 테스트 시작 (3회 연속 호출)');
+  Logger.log('🧪 [TEST] getNextSCNumber (Lock 기반) 테스트 시작');
   const cueId = CFG.CUE_SHEET_ID;
 
-  // 1회차: 캐시 미스 예상
+  // 1회차
   const start1 = new Date().getTime();
-  const num1 = getCachedSCNumber(cueId);
+  const num1 = getNextSCNumber(cueId);
   const end1 = new Date().getTime();
   Logger.log(`🧪 [1회차] 소요시간: ${end1 - start1}ms, 번호: ${num1}`);
 
-  // 2회차: 캐시 히트 예상
+  // 2회차
   const start2 = new Date().getTime();
-  const num2 = getCachedSCNumber(cueId);
+  const num2 = getNextSCNumber(cueId);
   const end2 = new Date().getTime();
   Logger.log(`🧪 [2회차] 소요시간: ${end2 - start2}ms, 번호: ${num2}`);
 
-  // 3회차: 캐시 히트 예상
+  // 3회차
   const start3 = new Date().getTime();
-  const num3 = getCachedSCNumber(cueId);
+  const num3 = getNextSCNumber(cueId);
   const end3 = new Date().getTime();
   Logger.log(`🧪 [3회차] 소요시간: ${end3 - start3}ms, 번호: ${num3}`);
 
-  Logger.log('🧪 [RESULT] 캐싱 성능 테스트 완료');
-  return { num1, num2, num3, time1: end1-start1, time2: end2-start2, time3: end3-start3 };
+  Logger.log('🧪 [RESULT] 테스트 완료');
+  Logger.log(`🧪 [RESULT] 번호 순차 증가 확인: ${num1} → ${num2} → ${num3}`);
+
+  // 번호가 순차적으로 증가하는지 검증
+  const isSequential = (num2 === num1 + 1) && (num3 === num2 + 1);
+  Logger.log(`🧪 [RESULT] 순차 증가 검증: ${isSequential ? '✅ 성공' : '❌ 실패'}`);
+
+  return { num1, num2, num3, time1: end1-start1, time2: end2-start2, time3: end3-start3, isSequential };
 }
 function getBootstrap() {
   // 사용자별 저장된 Sheet ID 로드
@@ -284,49 +280,46 @@ function getTimeOptions(cueIdOverride) {
     return { ok:false, error:String(e) };
   }
 }
-// ===== SC 번호 캐싱 (5분 TTL) =====
-function getCachedSCNumber(cueId) {
-  const cache = CacheService.getScriptCache();
-  const key = 'LAST_SC_' + cueId;
-
-  const cached = cache.get(key);
-  if (cached) {
-    const nextNum = parseInt(cached, 10) + 1;
-    cache.put(key, String(nextNum), 300); // 5분 TTL
-    Logger.log(`✅ [SC-CACHE-HIT] 캐시된 번호 사용: ${nextNum}`);
-    return nextNum;
-  }
-
-  // 캐시 미스 - 실제로 F열 읽기
-  Logger.log('❌ [SC-CACHE-MISS] F열에서 번호 로드');
-  const scNumber = getNextSCNumber(cueId);
-  cache.put(key, String(scNumber), 300);
-  return scNumber;
-}
-
+// ===== SC 번호 발급 (Lock + 즉시 예약) =====
 function getNextSCNumber(cueId) {
+  const lock = LockService.getScriptLock();
+
   try {
+    // 최대 30초 대기 (동시 요청 시 대기)
+    const hasLock = lock.tryLock(30000);
+    if (!hasLock) {
+      Logger.log('❌ [SC-LOCK] Lock 획득 실패 (30초 타임아웃)');
+      throw new Error('SC_NUMBER_LOCK_TIMEOUT');
+    }
+
     const funcStart = new Date().getTime();
-    Logger.log('⏱️ [SC-START] getNextSCNumber 시작');
+    Logger.log('🔒 [SC-LOCK] Lock 획득 성공');
 
     const t0 = new Date().getTime();
     const ss = SpreadsheetApp.openById(cueId);
     Logger.log(`⏱️ [SC-0] SpreadsheetApp.openById: ${new Date().getTime() - t0}ms`);
 
     const sh = ss.getSheetByName(CFG.CUE_TAB_VIRTUAL);
-    if (!sh) return 1;
+    if (!sh) {
+      Logger.log('⚠️ [SC-ERROR] Virtual 시트 없음 - 기본값 1 반환');
+      return 1;
+    }
 
     const t1 = new Date().getTime();
     const last = sh.getLastRow();
     Logger.log(`⏱️ [SC-1] getLastRow: ${new Date().getTime() - t1}ms, 총 행수: ${last}`);
-    if (last < 2) return 1;
+
+    if (last < 2) {
+      Logger.log('⚠️ [SC-EMPTY] 빈 시트 - 기본값 1 반환');
+      return 1;
+    }
 
     // F열(파일명) 전체 읽기
     const t2 = new Date().getTime();
     const colF = sh.getRange(2, 6, last - 1, 1).getValues().flat();
     Logger.log(`⏱️ [SC-2] F열 읽기 (${last-1}행): ${new Date().getTime() - t2}ms`);
 
-    // SC로 시작하는 번호 추출
+    // SC로 시작하는 번호 추출 (RESERVED 포함)
     const t3 = new Date().getTime();
     const scNumbers = colF
       .map(v => {
@@ -337,14 +330,22 @@ function getNextSCNumber(cueId) {
       .filter(n => n > 0);
     Logger.log(`⏱️ [SC-3] 번호 추출: ${new Date().getTime() - t3}ms, 추출된 개수: ${scNumbers.length}`);
 
-    // 최대값 찾기 (없으면 0 반환 후 +1 = 1)
-    const result = scNumbers.length > 0 ? Math.max(...scNumbers) + 1 : 1;
+    // 다음 번호 계산
+    const nextNum = scNumbers.length > 0 ? Math.max(...scNumbers) + 1 : 1;
+    Logger.log(`📊 [SC-NEXT] 다음 SC 번호: ${nextNum}`);
+
     const totalTime = new Date().getTime() - funcStart;
-    Logger.log(`⏱️ [SC-END] getNextSCNumber 완료 - 총 소요시간: ${totalTime}ms, 다음 번호: ${result}`);
-    return result;
+    Logger.log(`⏱️ [SC-END] getNextSCNumber 완료 - 총 소요시간: ${totalTime}ms, 다음 번호: ${nextNum}`);
+
+    return nextNum;
+
   } catch(e) {
-    Logger.log('getNextSCNumber error:', e);
+    Logger.log('❌ [SC-ERROR] getNextSCNumber error:', e);
     return 1; // 에러 시 기본값 1
+  } finally {
+    // Lock 해제
+    lock.releaseLock();
+    Logger.log('🔓 [SC-UNLOCK] Lock 해제');
   }
 }
 function buildFileName(kind, hhmm, tableNo, playerOrLabel, modeData, scNumber) {
@@ -422,10 +423,10 @@ function updateVirtual(payload) {
     if (rowIdx0 < 0) return { ok:false, error:`NO_MATCH_TIME:${pickedStr}` };
     const row = 2 + rowIdx0;
 
-    // SC 번호 자동 생성 (캐싱 사용)
+    // SC 번호 자동 생성 (Lock 사용)
     const t4 = new Date().getTime();
-    const scNumber = getCachedSCNumber(cueId);
-    Logger.log(`⏱️ [4] getCachedSCNumber: ${new Date().getTime() - t4}ms`);
+    const scNumber = getNextSCNumber(cueId);
+    Logger.log(`⏱️ [4] getNextSCNumber: ${new Date().getTime() - t4}ms`);
 
     // 파일명 자동 생성 (SC### 접두사 포함)
     const fVal = buildFileName(
