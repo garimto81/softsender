@@ -10,8 +10,8 @@ function setMode(m){
   // 배치 작업 중 모드 변경 시 피드백
   if (state.batch.length > 0) {
     const modeNames = {
-      PU: '스택 업데이트',
-      L3: '프로필 자막'
+      PU: '플레이어 업데이트',
+      L3: '플레이어 소개'
     };
     toast(`⚠️ 모드 변경: ${modeNames[m]}`, true);
   }

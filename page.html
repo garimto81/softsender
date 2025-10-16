@@ -1,6 +1,6 @@
 <!--
   Soft Content Sender v11.0.0
-  Build Time: 2025-10-15T19:57:50.939Z
+  Build Time: 2025-10-16T07:27:19.671Z
   Build Mode: NORMAL
 
   ⚠️  AUTO-GENERATED FILE - DO NOT EDIT DIRECTLY
@@ -411,8 +411,8 @@ details[open] > summary {
       <div class="field">
         <label>모드</label>
         <div class="tabs">
-          <button id="tabPU" class="active">스택 업데이트(PU)</button>
-          <button id="tabL3">프로필 자막(L3)</button>
+          <button id="tabPU" class="active">플레이어 업데이트(PU)</button>
+          <button id="tabL3">플레이어 소개(L3)</button>
         </div>
       </div>
     </div>
@@ -971,7 +971,7 @@ function rebuildPreview(){
     if (!player) { body = ''; }
     else {
       const name = (player.player || '').toUpperCase();
-      body = `프로필 자막\n${name}`;
+      body = `플레이어 소개\n${name}`;
     }
   }
   els.preview.value = body;
@@ -1002,7 +1002,7 @@ function generateCurrentPreview() {
     if (player) {
       const name = (player.player || '').toUpperCase();
       const country = (player.nat || '').toUpperCase();
-      body = `프로필 자막\n${name} / ${country}`;
+      body = `플레이어 소개\n${name} / ${country}`;
     }
   }
 
@@ -1640,8 +1640,8 @@ function setMode(m){
   // 배치 작업 중 모드 변경 시 피드백
   if (state.batch.length > 0) {
     const modeNames = {
-      PU: '스택 업데이트',
-      L3: '프로필 자막'
+      PU: '플레이어 업데이트',
+      L3: '플레이어 소개'
     };
     toast(`⚠️ 모드 변경: ${modeNames[m]}`, true);
   }

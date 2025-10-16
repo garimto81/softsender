@@ -13,7 +13,8 @@
       "Bash(git push:*)",
       "Bash(npm run build:*)",
       "Bash(git commit -m \"$(cat <<''EOF''\ndebug: 서버 측 KeyPlayer 디버깅 로그 강화\n\n🔍 추가된 서버 로그:\n1. Google Sheets 헤더 전체 출력\n2. KeyPlayer 컬럼 인덱스 확인\n3. 첫 3개 행의 KeyPlayer 원본값/변환값 추적\n4. 최종 KeyPlayer 개수 집계\n\n📊 로그 출력 내용:\n- \"📊 Google Sheets 헤더: [...]\"\n- \"📊 전체 컬럼 수: N\"\n- \"⭐ KeyPlayer 컬럼 인덱스: N\" (또는 -1)\n- \"🔍 행 2: KeyPlayer 원본값='...', 변환값='...', 결과=true/false\"\n- \"✅ 최종 결과: 전체 N행 중 KeyPlayer=N개\"\n\n🎯 목적:\n- Google Sheets Type 탭의 실제 헤더 구조 파악\n- KeyPlayer 컬럼이 존재하는지 확인\n- TRUE/FALSE 값이 제대로 파싱되는지 검증\n\n📝 확인 방법:\nGoogle Apps Script > 실행 > getTypeRows 실행 후\n보기 > 로그 또는 실행 로그 확인\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(node:*)"
     ],
     "deny": [],
     "ask": []

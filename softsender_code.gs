@@ -342,13 +342,21 @@ function updateVirtual(payload) {
     const glue = jCurrent ? (needsLF + '\n') : '';
     const jNew = jCurrent + glue + jBlock;
 
+    // K열 값 결정 (모드에 따라 분기)
+    let kVal = '소프트 콘텐츠'; // 기본값
+    if (payload.kind === 'PU') {
+      kVal = '플레이어 업데이트';
+    } else if (payload.kind === 'L3') {
+      kVal = '플레이어 소개';
+    }
+
     // 업데이트할 행 준비
     const updatedRow = [...existingRow];
     updatedRow[4] = eVal;              // E (5번째 컬럼, 인덱스 4)
     updatedRow[5] = fVal;              // F
     updatedRow[6] = gVal;              // G
     updatedRow[9] = jNew;              // J
-    updatedRow[10] = '소프트 콘텐츠';   // K
+    updatedRow[10] = kVal;             // K
 
     // 1회 배치 쓰기
     sh.getRange(row, 1, 1, 11).setValues([updatedRow]);

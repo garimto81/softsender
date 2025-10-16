@@ -27,7 +27,7 @@ function rebuildPreview(){
     if (!player) { body = ''; }
     else {
       const name = (player.player || '').toUpperCase();
-      body = `프로필 자막\n${name}`;
+      body = `플레이어 소개\n${name}`;
     }
   }
   els.preview.value = body;
@@ -58,7 +58,7 @@ function generateCurrentPreview() {
     if (player) {
       const name = (player.player || '').toUpperCase();
       const country = (player.nat || '').toUpperCase();
-      body = `프로필 자막\n${name} / ${country}`;
+      body = `플레이어 소개\n${name} / ${country}`;
     }
   }
 
