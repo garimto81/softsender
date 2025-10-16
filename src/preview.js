@@ -27,7 +27,8 @@ function rebuildPreview(){
     if (!player) { body = ''; }
     else {
       const name = (player.player || '').toUpperCase();
-      body = `플레이어 소개\n${name}`;
+      const country = (player.nat || '').toUpperCase();
+      body = `플레이어 소개\n${name} / ${country}`;
     }
   }
   els.preview.value = body;

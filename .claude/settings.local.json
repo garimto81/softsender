@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(git reset:*)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Bash(clasp login)",
+      "Bash(clasp push:*)"
     ],
     "deny": [],
     "ask": []
