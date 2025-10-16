@@ -556,15 +556,21 @@ function updateVirtual(payload) {
     if (rowIdx0 < 0) return { ok:false, error:`NO_MATCH_TIME:${pickedStr}` };
     const row = 2 + rowIdx0;
 
+    // ===== C열에서 실제 매칭된 시간값 추출 (파일명용) =====
+    const matchedTimeStr = String(colC[rowIdx0] || '').trim();
+    const hhmmMatch = matchedTimeStr.match(/^(\d{2}):(\d{2})/);
+    const hhmmForFile = hhmmMatch ? `${hhmmMatch[1]}${hhmmMatch[2]}` : '0000';
+    Logger.log(`📅 [3-1] C열 매칭 시간: "${matchedTimeStr}" → 파일명용: "${hhmmForFile}"`);
+
     // ===== 2단계: SC 번호 예약 (Lock 내) =====
     const t4 = new Date().getTime();
     const scNumber = reserveSCNumber(cueId, row);  // Lock 보호 구간 내 F열 예약
     Logger.log(`⏱️ [4] reserveSCNumber: ${new Date().getTime() - t4}ms`);
 
-    // 파일명 자동 생성 (SC### 접두사 포함)
+    // 파일명 자동 생성 (C열 매칭 시간 사용)
     const fVal = buildFileName(
       payload.kind,
-      payload.hhmm,
+      hhmmForFile,
       payload.tableNo,
       payload.playerName,
       payload.modeData,
