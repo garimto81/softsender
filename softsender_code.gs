@@ -43,27 +43,38 @@ function testUpdateVirtual() {
   return result;
 }
 
-function testGetNextSCNumber() {
-  Logger.log('🧪 [TEST] getNextSCNumber (Lock 기반) 테스트 시작');
+function testReserveSCNumber() {
+  Logger.log('🧪 [TEST] reserveSCNumber (2단계 패턴) 테스트 시작');
   const cueId = CFG.CUE_SHEET_ID;
+  const ss = SpreadsheetApp.openById(cueId);
+  const sh = ss.getSheetByName(CFG.CUE_TAB_VIRTUAL);
+  const lastRow = sh.getLastRow();
 
-  // 1회차
+  // 테스트용 행 3개 확보 (마지막 3행)
+  const testRow1 = lastRow + 1;
+  const testRow2 = lastRow + 2;
+  const testRow3 = lastRow + 3;
+
+  // 1회차: 예약
   const start1 = new Date().getTime();
-  const num1 = getNextSCNumber(cueId);
+  const num1 = reserveSCNumber(cueId, testRow1);
   const end1 = new Date().getTime();
-  Logger.log(`🧪 [1회차] 소요시간: ${end1 - start1}ms, 번호: ${num1}`);
+  const reserved1 = sh.getRange(testRow1, 6, 1, 1).getValue();
+  Logger.log(`🧪 [1회차] 소요시간: ${end1 - start1}ms, 번호: ${num1}, F열: "${reserved1}"`);
 
-  // 2회차
+  // 2회차: 예약
   const start2 = new Date().getTime();
-  const num2 = getNextSCNumber(cueId);
+  const num2 = reserveSCNumber(cueId, testRow2);
   const end2 = new Date().getTime();
-  Logger.log(`🧪 [2회차] 소요시간: ${end2 - start2}ms, 번호: ${num2}`);
+  const reserved2 = sh.getRange(testRow2, 6, 1, 1).getValue();
+  Logger.log(`🧪 [2회차] 소요시간: ${end2 - start2}ms, 번호: ${num2}, F열: "${reserved2}"`);
 
-  // 3회차
+  // 3회차: 예약
   const start3 = new Date().getTime();
-  const num3 = getNextSCNumber(cueId);
+  const num3 = reserveSCNumber(cueId, testRow3);
   const end3 = new Date().getTime();
-  Logger.log(`🧪 [3회차] 소요시간: ${end3 - start3}ms, 번호: ${num3}`);
+  const reserved3 = sh.getRange(testRow3, 6, 1, 1).getValue();
+  Logger.log(`🧪 [3회차] 소요시간: ${end3 - start3}ms, 번호: ${num3}, F열: "${reserved3}"`);
 
   Logger.log('🧪 [RESULT] 테스트 완료');
   Logger.log(`🧪 [RESULT] 번호 순차 증가 확인: ${num1} → ${num2} → ${num3}`);
@@ -72,7 +83,23 @@ function testGetNextSCNumber() {
   const isSequential = (num2 === num1 + 1) && (num3 === num2 + 1);
   Logger.log(`🧪 [RESULT] 순차 증가 검증: ${isSequential ? '✅ 성공' : '❌ 실패'}`);
 
-  return { num1, num2, num3, time1: end1-start1, time2: end2-start2, time3: end3-start3, isSequential };
+  // F열 예약 마커 검증
+  const hasReserved1 = String(reserved1).startsWith(`SC${String(num1).padStart(3, '0')}_RESERVED`);
+  const hasReserved2 = String(reserved2).startsWith(`SC${String(num2).padStart(3, '0')}_RESERVED`);
+  const hasReserved3 = String(reserved3).startsWith(`SC${String(num3).padStart(3, '0')}_RESERVED`);
+  const allReserved = hasReserved1 && hasReserved2 && hasReserved3;
+  Logger.log(`🧪 [RESULT] F열 예약 마커 검증: ${allReserved ? '✅ 성공' : '❌ 실패'}`);
+
+  // 테스트 행 정리
+  sh.deleteRows(testRow1, 3);
+  Logger.log('🧪 [CLEANUP] 테스트 행 삭제 완료');
+
+  return {
+    num1, num2, num3,
+    time1: end1-start1, time2: end2-start2, time3: end3-start3,
+    isSequential,
+    allReserved
+  };
 }
 function getBootstrap() {
   // 사용자별 저장된 Sheet ID 로드
@@ -280,8 +307,8 @@ function getTimeOptions(cueIdOverride) {
     return { ok:false, error:String(e) };
   }
 }
-// ===== SC 번호 발급 (Lock + 즉시 예약) =====
-function getNextSCNumber(cueId) {
+// ===== SC 번호 예약 (2단계 패턴: Lock 내 예약) =====
+function reserveSCNumber(cueId, targetRow) {
   const lock = LockService.getScriptLock();
 
   try {
@@ -292,35 +319,33 @@ function getNextSCNumber(cueId) {
       throw new Error('SC_NUMBER_LOCK_TIMEOUT');
     }
 
-    const funcStart = new Date().getTime();
     Logger.log('🔒 [SC-LOCK] Lock 획득 성공');
 
-    const t0 = new Date().getTime();
     const ss = SpreadsheetApp.openById(cueId);
-    Logger.log(`⏱️ [SC-0] SpreadsheetApp.openById: ${new Date().getTime() - t0}ms`);
-
     const sh = ss.getSheetByName(CFG.CUE_TAB_VIRTUAL);
+
     if (!sh) {
       Logger.log('⚠️ [SC-ERROR] Virtual 시트 없음 - 기본값 1 반환');
       return 1;
     }
 
-    const t1 = new Date().getTime();
     const last = sh.getLastRow();
-    Logger.log(`⏱️ [SC-1] getLastRow: ${new Date().getTime() - t1}ms, 총 행수: ${last}`);
-
     if (last < 2) {
       Logger.log('⚠️ [SC-EMPTY] 빈 시트 - 기본값 1 반환');
+
+      // ===== F열에 예약 마커 작성 =====
+      if (targetRow >= 2) {
+        sh.getRange(targetRow, 6, 1, 1).setValue('SC001_RESERVED');
+        Logger.log(`✅ [SC-RESERVE] F열 예약: 행 ${targetRow} = "SC001_RESERVED"`);
+      }
+
       return 1;
     }
 
     // F열(파일명) 전체 읽기
-    const t2 = new Date().getTime();
     const colF = sh.getRange(2, 6, last - 1, 1).getValues().flat();
-    Logger.log(`⏱️ [SC-2] F열 읽기 (${last-1}행): ${new Date().getTime() - t2}ms`);
 
     // SC로 시작하는 번호 추출 (RESERVED 포함)
-    const t3 = new Date().getTime();
     const scNumbers = colF
       .map(v => {
         const str = String(v || '').trim();
@@ -328,19 +353,24 @@ function getNextSCNumber(cueId) {
         return match ? parseInt(match[1], 10) : 0;
       })
       .filter(n => n > 0);
-    Logger.log(`⏱️ [SC-3] 번호 추출: ${new Date().getTime() - t3}ms, 추출된 개수: ${scNumbers.length}`);
 
     // 다음 번호 계산
     const nextNum = scNumbers.length > 0 ? Math.max(...scNumbers) + 1 : 1;
     Logger.log(`📊 [SC-NEXT] 다음 SC 번호: ${nextNum}`);
 
-    const totalTime = new Date().getTime() - funcStart;
-    Logger.log(`⏱️ [SC-END] getNextSCNumber 완료 - 총 소요시간: ${totalTime}ms, 다음 번호: ${nextNum}`);
+    // ===== F열에 예약 마커 작성 (Lock 보호 구간) =====
+    if (targetRow >= 2) {
+      const reserveMarker = `SC${String(nextNum).padStart(3, '0')}_RESERVED`;
+      sh.getRange(targetRow, 6, 1, 1).setValue(reserveMarker);
+      Logger.log(`✅ [SC-RESERVE] F열 예약: 행 ${targetRow} = "${reserveMarker}"`);
+    } else {
+      Logger.log('⚠️ [SC-RESERVE] targetRow 없음 - 예약 생략');
+    }
 
     return nextNum;
 
   } catch(e) {
-    Logger.log('❌ [SC-ERROR] getNextSCNumber error:', e);
+    Logger.log('❌ [SC-ERROR] reserveSCNumber error:', e);
     return 1; // 에러 시 기본값 1
   } finally {
     // Lock 해제
@@ -423,10 +453,10 @@ function updateVirtual(payload) {
     if (rowIdx0 < 0) return { ok:false, error:`NO_MATCH_TIME:${pickedStr}` };
     const row = 2 + rowIdx0;
 
-    // SC 번호 자동 생성 (Lock 사용)
+    // ===== 2단계: SC 번호 예약 (Lock 내) =====
     const t4 = new Date().getTime();
-    const scNumber = getNextSCNumber(cueId);
-    Logger.log(`⏱️ [4] getNextSCNumber: ${new Date().getTime() - t4}ms`);
+    const scNumber = reserveSCNumber(cueId, row);  // Lock 보호 구간 내 F열 예약
+    Logger.log(`⏱️ [4] reserveSCNumber: ${new Date().getTime() - t4}ms`);
 
     // 파일명 자동 생성 (SC### 접두사 포함)
     const fVal = buildFileName(
@@ -472,9 +502,10 @@ function updateVirtual(payload) {
     sh.getRange(row, 5, 1, 1).setValue(eVal);   // E열
     Logger.log(`⏱️ [7-1] E열 쓰기: ${new Date().getTime() - t7}ms`);
 
+    // ===== 2단계: 최종 파일명 덮어쓰기 (RESERVED 마커 교체) =====
     const t8 = new Date().getTime();
-    sh.getRange(row, 6, 1, 1).setValue(fVal);   // F열
-    Logger.log(`⏱️ [7-2] F열 쓰기: ${new Date().getTime() - t8}ms`);
+    sh.getRange(row, 6, 1, 1).setValue(fVal);   // F열: 예약 마커 → 최종 파일명
+    Logger.log(`⏱️ [7-2] F열 최종 쓰기: ${new Date().getTime() - t8}ms`);
 
     const t9 = new Date().getTime();
     sh.getRange(row, 7, 1, 1).setValue(gVal);   // G열
