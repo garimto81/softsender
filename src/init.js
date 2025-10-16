@@ -1,4 +1,15 @@
+// 전역 변수: setInterval ID 저장 (중복 방지)
+let keepAliveInterval = null;
+let isInitialized = false;
+
 function init(){
+  // 중복 초기화 방지
+  if (isInitialized) {
+    console.warn('⚠️ init() 이미 실행됨 - 중복 호출 차단');
+    return;
+  }
+  isInitialized = true;
+
   // 로딩 오버레이 표시
   showLoading('🔧 초기화 중...', '서버 연결 중...');
 
@@ -103,9 +114,16 @@ function init(){
 
 // 세션 유지 함수 (4분마다 더미 호출)
 function startSessionKeepAlive() {
+  // 기존 interval 정리 (중복 방지)
+  if (keepAliveInterval) {
+    console.log('🧹 [Keep-Alive] 기존 interval 정리');
+    clearInterval(keepAliveInterval);
+    keepAliveInterval = null;
+  }
+
   console.log('🔄 [Keep-Alive] 세션 유지 시작');
 
-  setInterval(() => {
+  keepAliveInterval = setInterval(() => {
     const timestamp = new Date().toLocaleTimeString('ko-KR');
     console.log(`🔄 [Keep-Alive] 세션 유지 중... (${timestamp})`);
 
@@ -119,5 +137,14 @@ function startSessionKeepAlive() {
       .getBootstrap(); // 가벼운 함수 호출
   }, 4 * 60 * 1000); // 4분마다 (Google 5분 타임아웃 전)
 }
+
+// 페이지 종료 시 리소스 정리
+window.addEventListener('beforeunload', () => {
+  if (keepAliveInterval) {
+    console.log('🧹 [Clean-Up] Keep-Alive interval 정리');
+    clearInterval(keepAliveInterval);
+    keepAliveInterval = null;
+  }
+});
 
 window.addEventListener('load', init);

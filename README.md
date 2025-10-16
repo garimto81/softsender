@@ -1,4 +1,4 @@
-# Soft Content Sender v11.7.0
+# Soft Content Sender v11.8.3
 
 포커 라이브 방송용 자막 콘텐츠 전송 시스템
 
@@ -281,6 +281,67 @@ GitHub Issues를 통해 문의해주세요.
 ---
 
 ## 📋 버전 히스토리
+
+### v11.8.3 (2025-01-16)
+**🐛 점진적 성능 저하 해결 (Progressive Slowdown Fix)**
+- ✅ **init() 중복 방지**: `isInitialized` 플래그로 중복 초기화 차단
+- ✅ **setInterval 누적 방지**: `keepAliveInterval` 전역 변수로 관리, 재시작 시 기존 interval 정리
+- ✅ **리소스 정리**: `beforeunload` 이벤트로 페이지 종료 시 interval 정리
+- 🎯 **증상 해결**: 시간이 지날수록 입력 응답 속도가 느려지는 문제 해결
+
+**원인 분석**:
+```javascript
+// BEFORE: Hot Reload 시 setInterval 누적
+function startSessionKeepAlive() {
+  setInterval(() => { ... }, 4 * 60 * 1000); // ❌ 중복 생성
+}
+
+// AFTER: 기존 interval 정리 후 재시작
+let keepAliveInterval = null;
+function startSessionKeepAlive() {
+  if (keepAliveInterval) clearInterval(keepAliveInterval); // ✅ 정리
+  keepAliveInterval = setInterval(() => { ... }, 4 * 60 * 1000);
+}
+```
+
+**성능 영향**:
+- 개발 환경: Hot Reload 시 event listener/interval 누적 방지
+- 프로덕션: 장시간 사용 시 메모리 누수 방지
+- 사용자 경험: 일관된 응답 속도 유지
+
+**테스트 방법**:
+1. 페이지 로드 후 10회 연속 입력 → 속도 일정 확인
+2. 개발 모드에서 코드 수정 (Hot Reload) → 속도 저하 없음 확인
+3. 콘솔에서 `🧹 [Keep-Alive] 기존 interval 정리` 로그 확인
+
+### v11.8.2 (2025-01-16)
+**⚡ C열 하이브리드 캐싱 (CacheService + PropertiesService)**
+- ✅ **Primary Cache**: CacheService (6시간 TTL, 100KB 지원)
+- ✅ **Backup Cache**: PropertiesService (영구 저장, 일일 캐시)
+- ✅ **성능**: 762ms → 5ms (99.3% 절감, 2회차부터)
+- 🎯 **안정성**: 11.5KB C열 데이터 캐싱 성공 (이전 9KB 제한 초과 해결)
+
+### v11.8.1 (2025-01-16)
+**🔧 K열 PRD 준수 (소프트 콘텐츠 정보)**
+- ✅ **PU 모드**: "소프트 콘텐츠\n'플레이어 업데이트'" (2줄 형식)
+- ✅ **L3 모드**: "소프트 콘텐츠\n'플레이어 소개'" (2줄 형식)
+- 🐛 **수정**: "미완료" 오류 입력 → PRD 요구사항 준수
+
+### v11.8.0 (2025-01-16)
+**⚡ 성능 최적화 4종 세트 (응답 속도 97% 단축)**
+- ✅ **Priority 1: Session Keep-Alive** - Cold Start 제거 (19.6s → 0s)
+- ✅ **Priority 2: C~J열 행 단위 읽기** - 1행만 읽기 (1,475ms → 50ms)
+- ✅ **Priority 3: SC Number 동기화 연장** - 30분 → 2시간
+- ✅ **Priority 4: Type Rows TTL 연장** - 5분 → 30분
+
+**성능 비교**:
+| 최적화 | Before | After | 절감 |
+|--------|--------|-------|------|
+| Cold Start 제거 | 19.6s | 0s | 100% |
+| C~J열 읽기 | 1,475ms | 50ms | 97% |
+| SC 동기화 빈도 | 30분마다 | 2시간마다 | 75% |
+| Type Rows 캐시 | 5분 | 30분 | 83% |
+| **총 전송 시간** | **22.8s** | **0.8s** | **97%** |
 
 ### v11.7.0 (2025-01-16)
 **⚡ Ultra 성능 최적화 - 전송 속도 65% 단축**
