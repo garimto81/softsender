@@ -17,7 +17,7 @@ function doGet() {
 
 // ===== 디버깅용 테스트 함수 =====
 function testUpdateVirtual() {
-  Logger.log('🧪 [TEST] updateVirtual 테스트 시작');
+  Logger.log('🧪 [TEST] updateVirtual 성능 테스트 시작');
 
   const testPayload = {
     cueId: CFG.CUE_SHEET_ID,
@@ -33,17 +33,50 @@ function testUpdateVirtual() {
   };
 
   Logger.log('🧪 테스트 payload:', JSON.stringify(testPayload));
+  const startTotal = new Date().getTime();
   const result = updateVirtual(testPayload);
-  Logger.log('🧪 테스트 결과:', JSON.stringify(result));
+  const endTotal = new Date().getTime();
+
+  Logger.log(`🧪 [RESULT] 전체 소요시간: ${endTotal - startTotal}ms`);
+  Logger.log('🧪 [RESULT] 반환값:', JSON.stringify(result));
 
   return result;
 }
 
 function testGetNextSCNumber() {
-  Logger.log('🧪 [TEST] getNextSCNumber 테스트 시작');
+  Logger.log('🧪 [TEST] getNextSCNumber 성능 테스트 시작');
+  const startTotal = new Date().getTime();
   const result = getNextSCNumber(CFG.CUE_SHEET_ID);
-  Logger.log('🧪 테스트 결과:', result);
+  const endTotal = new Date().getTime();
+  Logger.log(`🧪 [RESULT] 전체 소요시간: ${endTotal - startTotal}ms`);
+  Logger.log('🧪 [RESULT] 다음 번호:', result);
   return result;
+}
+
+function testCachedSCNumber() {
+  Logger.log('🧪 [TEST] getCachedSCNumber 성능 테스트 시작 (3회 연속 호출)');
+  const cueId = CFG.CUE_SHEET_ID;
+
+  // 1회차: 캐시 미스 예상
+  const start1 = new Date().getTime();
+  const num1 = getCachedSCNumber(cueId);
+  const end1 = new Date().getTime();
+  Logger.log(`🧪 [1회차] 소요시간: ${end1 - start1}ms, 번호: ${num1}`);
+
+  // 2회차: 캐시 히트 예상
+  const start2 = new Date().getTime();
+  const num2 = getCachedSCNumber(cueId);
+  const end2 = new Date().getTime();
+  Logger.log(`🧪 [2회차] 소요시간: ${end2 - start2}ms, 번호: ${num2}`);
+
+  // 3회차: 캐시 히트 예상
+  const start3 = new Date().getTime();
+  const num3 = getCachedSCNumber(cueId);
+  const end3 = new Date().getTime();
+  Logger.log(`🧪 [3회차] 소요시간: ${end3 - start3}ms, 번호: ${num3}`);
+
+  Logger.log('🧪 [RESULT] 캐싱 성능 테스트 완료');
+  return { num1, num2, num3, time1: end1-start1, time2: end2-start2, time3: end3-start3 };
 }
 function getBootstrap() {
   // 사용자별 저장된 Sheet ID 로드
@@ -251,12 +284,35 @@ function getTimeOptions(cueIdOverride) {
     return { ok:false, error:String(e) };
   }
 }
+// ===== SC 번호 캐싱 (5분 TTL) =====
+function getCachedSCNumber(cueId) {
+  const cache = CacheService.getScriptCache();
+  const key = 'LAST_SC_' + cueId;
+
+  const cached = cache.get(key);
+  if (cached) {
+    const nextNum = parseInt(cached, 10) + 1;
+    cache.put(key, String(nextNum), 300); // 5분 TTL
+    Logger.log(`✅ [SC-CACHE-HIT] 캐시된 번호 사용: ${nextNum}`);
+    return nextNum;
+  }
+
+  // 캐시 미스 - 실제로 F열 읽기
+  Logger.log('❌ [SC-CACHE-MISS] F열에서 번호 로드');
+  const scNumber = getNextSCNumber(cueId);
+  cache.put(key, String(scNumber), 300);
+  return scNumber;
+}
+
 function getNextSCNumber(cueId) {
   try {
     const funcStart = new Date().getTime();
     Logger.log('⏱️ [SC-START] getNextSCNumber 시작');
 
+    const t0 = new Date().getTime();
     const ss = SpreadsheetApp.openById(cueId);
+    Logger.log(`⏱️ [SC-0] SpreadsheetApp.openById: ${new Date().getTime() - t0}ms`);
+
     const sh = ss.getSheetByName(CFG.CUE_TAB_VIRTUAL);
     if (!sh) return 1;
 
@@ -366,10 +422,10 @@ function updateVirtual(payload) {
     if (rowIdx0 < 0) return { ok:false, error:`NO_MATCH_TIME:${pickedStr}` };
     const row = 2 + rowIdx0;
 
-    // SC 번호 자동 생성
+    // SC 번호 자동 생성 (캐싱 사용)
     const t4 = new Date().getTime();
-    const scNumber = getNextSCNumber(cueId);
-    Logger.log(`⏱️ [4] getNextSCNumber: ${new Date().getTime() - t4}ms`);
+    const scNumber = getCachedSCNumber(cueId);
+    Logger.log(`⏱️ [4] getCachedSCNumber: ${new Date().getTime() - t4}ms`);
 
     // 파일명 자동 생성 (SC### 접두사 포함)
     const fVal = buildFileName(
