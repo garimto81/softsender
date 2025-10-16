@@ -819,7 +819,15 @@ function updateVirtual(payload) {
     const glue = jCurrentStr ? (needsLF + '\n') : '';
     const jNew = jCurrentStr + glue + jBlock;
 
-    const kVal = CFG.DEFAULT_STATUS_INCOMPLETE; // "미완료"
+    // K열: 소프트 콘텐츠 종류 (PRD 요구사항: 2줄 형식)
+    let kVal;
+    if (payload.kind === 'PU') {
+      kVal = "소프트 콘텐츠\n'플레이어 업데이트'";
+    } else if (payload.kind === 'L3') {
+      kVal = "소프트 콘텐츠\n'플레이어 소개'";
+    } else {
+      kVal = "소프트 콘텐츠\n'기타'";
+    }
     addLog('✅', '데이터 준비 완료', new Date().getTime() - t5);
 
     // Step 7: Batch 쓰기
