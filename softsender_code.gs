@@ -222,17 +222,25 @@ function getTimeOptions(cueIdOverride) {
 }
 function getNextSCNumber(cueId) {
   try {
+    const funcStart = new Date().getTime();
+    Logger.log('⏱️ [SC-START] getNextSCNumber 시작');
+
     const ss = SpreadsheetApp.openById(cueId);
     const sh = ss.getSheetByName(CFG.CUE_TAB_VIRTUAL);
     if (!sh) return 1;
 
+    const t1 = new Date().getTime();
     const last = sh.getLastRow();
+    Logger.log(`⏱️ [SC-1] getLastRow: ${new Date().getTime() - t1}ms, 총 행수: ${last}`);
     if (last < 2) return 1;
 
     // F열(파일명) 전체 읽기
+    const t2 = new Date().getTime();
     const colF = sh.getRange(2, 6, last - 1, 1).getValues().flat();
+    Logger.log(`⏱️ [SC-2] F열 읽기 (${last-1}행): ${new Date().getTime() - t2}ms`);
 
     // SC로 시작하는 번호 추출
+    const t3 = new Date().getTime();
     const scNumbers = colF
       .map(v => {
         const str = String(v || '').trim();
@@ -240,9 +248,13 @@ function getNextSCNumber(cueId) {
         return match ? parseInt(match[1], 10) : 0;
       })
       .filter(n => n > 0);
+    Logger.log(`⏱️ [SC-3] 번호 추출: ${new Date().getTime() - t3}ms, 추출된 개수: ${scNumbers.length}`);
 
     // 최대값 찾기 (없으면 0 반환 후 +1 = 1)
-    return scNumbers.length > 0 ? Math.max(...scNumbers) + 1 : 1;
+    const result = scNumbers.length > 0 ? Math.max(...scNumbers) + 1 : 1;
+    const totalTime = new Date().getTime() - funcStart;
+    Logger.log(`⏱️ [SC-END] getNextSCNumber 완료 - 총 소요시간: ${totalTime}ms, 다음 번호: ${result}`);
+    return result;
   } catch(e) {
     Logger.log('getNextSCNumber error:', e);
     return 1; // 에러 시 기본값 1
@@ -290,29 +302,43 @@ function buildFileName(kind, hhmm, tableNo, playerOrLabel, modeData, scNumber) {
 function updateVirtual(payload) {
   if (!payload || !payload.kind) return { ok:false, error:'BAD_PAYLOAD' };
   try {
+    const startTime = new Date().getTime();
+    Logger.log('⏱️ [START] updateVirtual 시작');
+
     const cueId = String(payload.cueId || CFG.CUE_SHEET_ID).trim();
     const ss = SpreadsheetApp.openById(cueId);
     const sh = ss.getSheetByName(CFG.CUE_TAB_VIRTUAL);
     if (!sh) throw new Error(`SHEET_NOT_FOUND:${CFG.CUE_TAB_VIRTUAL}`);
+
+    const t1 = new Date().getTime();
     const last = sh.getLastRow();
+    Logger.log(`⏱️ [1] getLastRow: ${new Date().getTime() - t1}ms`);
     if (last < 2) throw new Error('EMPTY_VIRTUAL');
 
+    const t2 = new Date().getTime();
     const colC = sh.getRange(2,3,last-1,1).getDisplayValues().flat();
+    Logger.log(`⏱️ [2] C열 읽기 (${last-1}행): ${new Date().getTime() - t2}ms`);
+
     const nowKST = new Date();
     const nowHHmm = Utilities.formatDate(nowKST, CFG.KST_TZ, 'HH:mm');
     const pickedStr = (payload.autoNow ? nowHHmm : (payload.pickedTime||'')).trim();
     if (!/^\d{2}:\d{2}$/.test(pickedStr)) throw new Error('TIME_FORMAT');
+
+    const t3 = new Date().getTime();
     const rowIdx0 = colC.findIndex(v=>{
       const s = String(v).trim();
       if (/^\d{2}:\d{2}$/.test(s)) return s===pickedStr;
       const m = s.match(/^(\d{2}:\d{2}):\d{2}$/);
       return m ? (m[1]===pickedStr) : false;
     });
+    Logger.log(`⏱️ [3] 시간 매칭: ${new Date().getTime() - t3}ms`);
     if (rowIdx0 < 0) return { ok:false, error:`NO_MATCH_TIME:${pickedStr}` };
     const row = 2 + rowIdx0;
 
     // SC 번호 자동 생성
+    const t4 = new Date().getTime();
     const scNumber = getNextSCNumber(cueId);
+    Logger.log(`⏱️ [4] getNextSCNumber: ${new Date().getTime() - t4}ms`);
 
     // 파일명 자동 생성 (SC### 접두사 포함)
     const fVal = buildFileName(
@@ -324,17 +350,22 @@ function updateVirtual(payload) {
       scNumber
     );
 
+    const t5 = new Date().getTime();
     const eVal = payload.eFix || CFG.DEFAULT_STATUS_INCOMPLETE;
     const gVal = payload.gFix || CFG.DEFAULT_CONTENT_TYPE;
     const jBlock = String(payload.jBlock||'').replace(/\r\n/g,'\n');
     if (!fVal) throw new Error('EMPTY_FILENAME');
     if (!jBlock) throw new Error('EMPTY_JBLOCK');
+    Logger.log(`⏱️ [5] 파일명/데이터 준비: ${new Date().getTime() - t5}ms`);
 
     // ===== Batch API 최적화: E/F/G/J/K만 개별 업데이트 (B/C 완전 배제) =====
     // B/C열은 읽지도 쓰지도 않음
 
     // J열 기존 내용 읽기 (병합용)
+    const t6 = new Date().getTime();
     const jCurrent = sh.getRange(row, 10, 1, 1).getValue();
+    Logger.log(`⏱️ [6] J열 읽기: ${new Date().getTime() - t6}ms`);
+
     const jCurrentStr = jCurrent ? String(jCurrent).replace(/\r\n/g,'\n') : '';
     const needsLF = jCurrentStr && !jCurrentStr.endsWith('\n') ? '\n' : '';
     const glue = jCurrentStr ? (needsLF + '\n') : '';
@@ -349,11 +380,28 @@ function updateVirtual(payload) {
     }
 
     // E/F/G/J/K 개별 업데이트 (B/C는 건드리지 않음)
+    const t7 = new Date().getTime();
     sh.getRange(row, 5, 1, 1).setValue(eVal);   // E열
+    Logger.log(`⏱️ [7-1] E열 쓰기: ${new Date().getTime() - t7}ms`);
+
+    const t8 = new Date().getTime();
     sh.getRange(row, 6, 1, 1).setValue(fVal);   // F열
+    Logger.log(`⏱️ [7-2] F열 쓰기: ${new Date().getTime() - t8}ms`);
+
+    const t9 = new Date().getTime();
     sh.getRange(row, 7, 1, 1).setValue(gVal);   // G열
+    Logger.log(`⏱️ [7-3] G열 쓰기: ${new Date().getTime() - t9}ms`);
+
+    const t10 = new Date().getTime();
     sh.getRange(row, 10, 1, 1).setValue(jNew);  // J열
+    Logger.log(`⏱️ [7-4] J열 쓰기: ${new Date().getTime() - t10}ms`);
+
+    const t11 = new Date().getTime();
     sh.getRange(row, 11, 1, 1).setValue(kVal);  // K열
+    Logger.log(`⏱️ [7-5] K열 쓰기: ${new Date().getTime() - t11}ms`);
+
+    const totalTime = new Date().getTime() - startTime;
+    Logger.log(`⏱️ [END] updateVirtual 완료 - 총 소요시간: ${totalTime}ms`);
 
     return { ok:true, row, time:pickedStr, filename: fVal, scNumber };
   } catch(e) {
