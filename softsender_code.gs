@@ -82,7 +82,7 @@ function testPerformanceDetailed() {
   // ===== 6. reserveSCNumber 측정 (전체) =====
   Logger.log('\n📌 [6/8] reserveSCNumber() 테스트');
   const t6_start = new Date().getTime();
-  const scNumber = reserveSCNumber(cueId, row);
+  const scNumber = reserveSCNumber(cueId, row, ss, sh);  // Sheet 객체 전달
   const t6_end = new Date().getTime();
   results.reserveSCNumber = t6_end - t6_start;
   Logger.log(`   ⏱️ 소요시간: ${results.reserveSCNumber}ms`);
@@ -125,7 +125,7 @@ function testPerformanceDetailed() {
   Logger.log(`   ⏱️ [4/5] J열 쓰기: ${results.setValue_4}ms`);
 
   const t8_5_start = new Date().getTime();
-  sh.getRange(testRow, 11, 1, 1).setValue('테스트5');
+  sh.getRange(testRow, 11, 1, 1).setValue('미완료');  // K열 validation 호환
   const t8_5_end = new Date().getTime();
   results.setValue_5 = t8_5_end - t8_5_start;
   Logger.log(`   ⏱️ [5/5] K열 쓰기: ${results.setValue_5}ms`);
@@ -137,7 +137,7 @@ function testPerformanceDetailed() {
   Logger.log('\n📌 [BONUS] setValues() 배치 쓰기 테스트');
   const testRow2 = last + 2;
   const t9_start = new Date().getTime();
-  sh.getRange(testRow2, 5, 1, 7).setValues([['테스트1', '테스트2', '테스트3', '', '', '테스트4', '테스트5']]);
+  sh.getRange(testRow2, 5, 1, 7).setValues([['테스트1', '테스트2', '테스트3', '', '', '테스트4', '미완료']]);  // K열 validation 호환
   const t9_end = new Date().getTime();
   results.setValuesBatch = t9_end - t9_start;
   Logger.log(`   ⏱️ 배치 쓰기 (7개 셀): ${results.setValuesBatch}ms`);
