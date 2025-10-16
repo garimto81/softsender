@@ -425,8 +425,8 @@ function getCachedTypeRows(typeIdOverride) {
   const result = getTypeRows(typeIdOverride);
 
   if (result.ok) {
-    // 5분(300초) 캐싱
-    cache.put(key, JSON.stringify(result), 300);
+    // 30분(1800초) 캐싱 - Priority 4 최적화
+    cache.put(key, JSON.stringify(result), 1800);
   }
 
   return result;
@@ -606,11 +606,11 @@ function reserveSCNumber(cueId, targetRow, ss, sh) {
     const props = PropertiesService.getScriptProperties();
     const lastSync = parseInt(props.getProperty('SC_LAST_SYNC') || '0', 10);
     const now = new Date().getTime();
-    const SYNC_INTERVAL = 30 * 60 * 1000;  // 30분 (1800000ms)
+    const SYNC_INTERVAL = 2 * 60 * 60 * 1000;  // 2시간 (7200000ms) - Priority 3 최적화
 
-    // ===== 주기적 동기화 (30분마다 F열 검증) =====
+    // ===== 주기적 동기화 (2시간마다 F열 검증) =====
     if (now - lastSync > SYNC_INTERVAL) {
-      Logger.log('🔄 [SC-SYNC] 30분 경과 - F열 동기화 시작');
+      Logger.log('🔄 [SC-SYNC] 2시간 경과 - F열 동기화 시작');
 
       // Phase 2: Sheet 객체 재사용 (파라미터로 받은 ss, sh 사용)
       const syncSs = ss || SpreadsheetApp.openById(cueId);
@@ -752,29 +752,18 @@ function updateVirtual(payload) {
     if (!sh) throw new Error(`SHEET_NOT_FOUND:${CFG.CUE_TAB_VIRTUAL}`);
     addLog('✅', '연결 완료', new Date().getTime() - t0);
 
-    // Step 2: 행 수 확인
-    addLog('📊', '[2/7] 데이터 행 수 확인 중...', null);
+    // Step 2: C열 캐시 로드 (시간 매칭용)
+    addLog('📊', '[2/7] 시간 데이터 로드 중... (C열 캐시)', null);
     const t1 = new Date().getTime();
-    const last = sh.getLastRow();
-    if (last < 2) throw new Error('EMPTY_VIRTUAL');
-    addLog('✅', `${last-1}개 행 확인 완료`, new Date().getTime() - t1);
+    const cacheResult = getCachedColumnC(cueId, ss, sh);
+    if (!cacheResult.ok) throw new Error('CACHE_ERROR');
+    const colC = cacheResult.data;
+    if (colC.length === 0) throw new Error('EMPTY_VIRTUAL');
+    addLog('✅', `${colC.length}개 행 로드 완료 (${cacheResult.source === 'cache' ? '캐시' : 'Sheets'})`, new Date().getTime() - t1);
 
-    // Step 3: C~J열 배치 읽기
-    addLog('📥', '[3/7] 시간/데이터 불러오는 중... (C~J열)', null);
+    // Step 3: 시간 매칭
+    addLog('🔍', '[3/7] 시간 매칭 중...', null);
     const t2 = new Date().getTime();
-    const colData = sh.getRange(2, 3, last-1, 8).getValues(); // C(3)~J(10) = 8개 열
-    const colC = colData.map(r => {
-      const val = r[0]; // C열 (인덱스 0)
-      if (val instanceof Date) {
-        return Utilities.formatDate(val, CFG.KST_TZ, 'HH:mm:ss');
-      }
-      return String(val || '').trim();
-    });
-    addLog('✅', `${last-1}행 x 8열 읽기 완료`, new Date().getTime() - t2);
-
-    // Step 4: 시간 매칭
-    addLog('🔍', '[4/7] 시간 매칭 중...', null);
-    const t3 = new Date().getTime();
     const nowKST = new Date();
     const nowHHmm = Utilities.formatDate(nowKST, CFG.KST_TZ, 'HH:mm');
     const pickedStr = (payload.autoNow ? nowHHmm : (payload.pickedTime||'')).trim();
@@ -788,7 +777,13 @@ function updateVirtual(payload) {
     });
     if (rowIdx0 < 0) return { ok:false, error:`NO_MATCH_TIME:${pickedStr}`, logs: progressLogs };
     const row = 2 + rowIdx0;
-    addLog('✅', `시간 "${pickedStr}" 매칭 완료 (행 ${row})`, new Date().getTime() - t3);
+    addLog('✅', `시간 "${pickedStr}" 매칭 완료 (행 ${row})`, new Date().getTime() - t2);
+
+    // Step 4: 매칭된 행의 J열만 읽기 (1행 x 1열)
+    addLog('📥', '[4/7] J열 데이터 로드 중...', null);
+    const t3 = new Date().getTime();
+    const jCurrent = sh.getRange(row, 10, 1, 1).getValue();
+    addLog('✅', 'J열 로드 완료', new Date().getTime() - t3);
 
     // 파일명용 시간값 추출
     const matchedTimeStr = String(colC[rowIdx0] || '').trim();
@@ -819,7 +814,6 @@ function updateVirtual(payload) {
     if (!fVal) throw new Error('EMPTY_FILENAME');
     if (!jBlock) throw new Error('EMPTY_JBLOCK');
 
-    const jCurrent = colData[rowIdx0][7]; // J열 (사전 로딩됨)
     const jCurrentStr = jCurrent ? String(jCurrent).replace(/\r\n/g,'\n') : '';
     const needsLF = jCurrentStr && !jCurrentStr.endsWith('\n') ? '\n' : '';
     const glue = jCurrentStr ? (needsLF + '\n') : '';

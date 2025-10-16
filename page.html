@@ -1,6 +1,6 @@
 <!--
   Soft Content Sender v11.0.0
-  Build Time: 2025-10-16T18:21:53.157Z
+  Build Time: 2025-10-16T19:43:52.202Z
   Build Mode: NORMAL
 
   ⚠️  AUTO-GENERATED FILE - DO NOT EDIT DIRECTLY
@@ -1764,6 +1764,28 @@ function setMode(m){
   bigBlind.addEventListener('input', ()=>{ formatInputWithComma(bigBlind); computeBB(); debouncedRebuild(); });
 
   setMode(CONSTANTS.MODES.PU);
+
+  // Priority 1: Session Keep-Alive (Cold Start 제거)
+  startSessionKeepAlive();
+}
+
+// 세션 유지 함수 (4분마다 더미 호출)
+function startSessionKeepAlive() {
+  console.log('🔄 [Keep-Alive] 세션 유지 시작');
+
+  setInterval(() => {
+    const timestamp = new Date().toLocaleTimeString('ko-KR');
+    console.log(`🔄 [Keep-Alive] 세션 유지 중... (${timestamp})`);
+
+    google.script.run
+      .withSuccessHandler(() => {
+        console.log(`✅ [Keep-Alive] 세션 유지 성공 (${timestamp})`);
+      })
+      .withFailureHandler((err) => {
+        console.warn(`⚠️ [Keep-Alive] 세션 유지 실패: ${err}`);
+      })
+      .getBootstrap(); // 가벼운 함수 호출
+  }, 4 * 60 * 1000); // 4분마다 (Google 5분 타임아웃 전)
 }
 
 window.addEventListener('load', init);

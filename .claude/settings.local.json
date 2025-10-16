@@ -4,7 +4,9 @@
       "Bash(git reset:*)",
       "Bash(echo:*)",
       "Bash(clasp login)",
-      "Bash(clasp push:*)"
+      "Bash(clasp push:*)",
+      "Bash(dir page.html)",
+      "Bash(findstr:*)"
     ],
     "deny": [],
     "ask": []
