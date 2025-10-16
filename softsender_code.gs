@@ -14,6 +14,37 @@ function doGet() {
     .setTitle('Soft Content Sender')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DEFAULT); // 클릭재킹 방지 (보안 강화)
 }
+
+// ===== 디버깅용 테스트 함수 =====
+function testUpdateVirtual() {
+  Logger.log('🧪 [TEST] updateVirtual 테스트 시작');
+
+  const testPayload = {
+    cueId: CFG.CUE_SHEET_ID,
+    kind: 'PU',
+    autoNow: true,
+    hhmm: '1050',
+    playerName: 'Test Player',
+    jBlock: 'TEST PLAYER / US\nCURRENT STACK - 100,000 (50BB)',
+    modeData: {
+      chipCount: '100000',
+      bb: '50'
+    }
+  };
+
+  Logger.log('🧪 테스트 payload:', JSON.stringify(testPayload));
+  const result = updateVirtual(testPayload);
+  Logger.log('🧪 테스트 결과:', JSON.stringify(result));
+
+  return result;
+}
+
+function testGetNextSCNumber() {
+  Logger.log('🧪 [TEST] getNextSCNumber 테스트 시작');
+  const result = getNextSCNumber(CFG.CUE_SHEET_ID);
+  Logger.log('🧪 테스트 결과:', result);
+  return result;
+}
 function getBootstrap() {
   // 사용자별 저장된 Sheet ID 로드
   const userPrefs = getUserPreference();
