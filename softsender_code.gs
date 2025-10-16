@@ -15,6 +15,167 @@ function doGet() {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DEFAULT); // 클릭재킹 방지 (보안 강화)
 }
 
+// ===== 성능 측정 전용 테스트 함수 =====
+function testPerformanceDetailed() {
+  Logger.log('📊 [PERF-TEST] 상세 성능 측정 시작');
+  Logger.log('='.repeat(60));
+
+  const cueId = CFG.CUE_SHEET_ID;
+  const results = {};
+
+  // ===== 1. SpreadsheetApp.openById 측정 =====
+  Logger.log('\n📌 [1/8] SpreadsheetApp.openById() 테스트');
+  const t1_start = new Date().getTime();
+  const ss = SpreadsheetApp.openById(cueId);
+  const t1_end = new Date().getTime();
+  results.openById = t1_end - t1_start;
+  Logger.log(`   ⏱️ 소요시간: ${results.openById}ms`);
+
+  // ===== 2. getSheetByName 측정 =====
+  Logger.log('\n📌 [2/8] getSheetByName() 테스트');
+  const t2_start = new Date().getTime();
+  const sh = ss.getSheetByName(CFG.CUE_TAB_VIRTUAL);
+  const t2_end = new Date().getTime();
+  results.getSheetByName = t2_end - t2_start;
+  Logger.log(`   ⏱️ 소요시간: ${results.getSheetByName}ms`);
+
+  // ===== 3. getLastRow 측정 =====
+  Logger.log('\n📌 [3/8] getLastRow() 테스트');
+  const t3_start = new Date().getTime();
+  const last = sh.getLastRow();
+  const t3_end = new Date().getTime();
+  results.getLastRow = t3_end - t3_start;
+  Logger.log(`   ⏱️ 소요시간: ${results.getLastRow}ms`);
+  Logger.log(`   📊 전체 행 수: ${last}`);
+
+  // ===== 4. C열 전체 읽기 측정 =====
+  Logger.log('\n📌 [4/8] C열 전체 읽기 (getDisplayValues) 테스트');
+  const t4_start = new Date().getTime();
+  const colC = sh.getRange(2, 3, last - 1, 1).getDisplayValues().flat();
+  const t4_end = new Date().getTime();
+  results.readColumnC = t4_end - t4_start;
+  Logger.log(`   ⏱️ 소요시간: ${results.readColumnC}ms`);
+  Logger.log(`   📊 읽은 행 수: ${colC.length}`);
+
+  // ===== 5. findIndex (시간 매칭) 측정 =====
+  Logger.log('\n📌 [5/8] findIndex() 시간 매칭 테스트');
+  const nowHHmm = Utilities.formatDate(new Date(), CFG.KST_TZ, 'HH:mm');
+  const t5_start = new Date().getTime();
+  const rowIdx0 = colC.findIndex(v => {
+    const s = String(v).trim();
+    if (/^\d{2}:\d{2}$/.test(s)) return s === nowHHmm;
+    const m = s.match(/^(\d{2}:\d{2}):\d{2}$/);
+    return m ? (m[1] === nowHHmm) : false;
+  });
+  const t5_end = new Date().getTime();
+  results.findIndex = t5_end - t5_start;
+  Logger.log(`   ⏱️ 소요시간: ${results.findIndex}ms`);
+  Logger.log(`   📊 매칭된 인덱스: ${rowIdx0}, 행: ${rowIdx0 >= 0 ? 2 + rowIdx0 : 'N/A'}`);
+
+  if (rowIdx0 < 0) {
+    Logger.log('⚠️ 시간 매칭 실패 - 테스트 중단');
+    return results;
+  }
+
+  const row = 2 + rowIdx0;
+
+  // ===== 6. reserveSCNumber 측정 (전체) =====
+  Logger.log('\n📌 [6/8] reserveSCNumber() 테스트');
+  const t6_start = new Date().getTime();
+  const scNumber = reserveSCNumber(cueId, row);
+  const t6_end = new Date().getTime();
+  results.reserveSCNumber = t6_end - t6_start;
+  Logger.log(`   ⏱️ 소요시간: ${results.reserveSCNumber}ms`);
+  Logger.log(`   📊 발급된 SC 번호: ${scNumber}`);
+
+  // ===== 7. 단일 셀 읽기 (J열) 측정 =====
+  Logger.log('\n📌 [7/8] getRange().getValue() 단일 셀 읽기 테스트');
+  const t7_start = new Date().getTime();
+  const jCurrent = sh.getRange(row, 10, 1, 1).getValue();
+  const t7_end = new Date().getTime();
+  results.readSingleCell = t7_end - t7_start;
+  Logger.log(`   ⏱️ 소요시간: ${results.readSingleCell}ms`);
+
+  // ===== 8. 개별 setValue x5 측정 =====
+  Logger.log('\n📌 [8/8] setValue() x5회 (개별 쓰기) 테스트');
+  const testRow = last + 1; // 마지막 행 다음에 테스트
+
+  const t8_1_start = new Date().getTime();
+  sh.getRange(testRow, 5, 1, 1).setValue('테스트1');
+  const t8_1_end = new Date().getTime();
+  results.setValue_1 = t8_1_end - t8_1_start;
+  Logger.log(`   ⏱️ [1/5] E열 쓰기: ${results.setValue_1}ms`);
+
+  const t8_2_start = new Date().getTime();
+  sh.getRange(testRow, 6, 1, 1).setValue('테스트2');
+  const t8_2_end = new Date().getTime();
+  results.setValue_2 = t8_2_end - t8_2_start;
+  Logger.log(`   ⏱️ [2/5] F열 쓰기: ${results.setValue_2}ms`);
+
+  const t8_3_start = new Date().getTime();
+  sh.getRange(testRow, 7, 1, 1).setValue('테스트3');
+  const t8_3_end = new Date().getTime();
+  results.setValue_3 = t8_3_end - t8_3_start;
+  Logger.log(`   ⏱️ [3/5] G열 쓰기: ${results.setValue_3}ms`);
+
+  const t8_4_start = new Date().getTime();
+  sh.getRange(testRow, 10, 1, 1).setValue('테스트4');
+  const t8_4_end = new Date().getTime();
+  results.setValue_4 = t8_4_end - t8_4_start;
+  Logger.log(`   ⏱️ [4/5] J열 쓰기: ${results.setValue_4}ms`);
+
+  const t8_5_start = new Date().getTime();
+  sh.getRange(testRow, 11, 1, 1).setValue('테스트5');
+  const t8_5_end = new Date().getTime();
+  results.setValue_5 = t8_5_end - t8_5_start;
+  Logger.log(`   ⏱️ [5/5] K열 쓰기: ${results.setValue_5}ms`);
+
+  results.setValueTotal = results.setValue_1 + results.setValue_2 + results.setValue_3 + results.setValue_4 + results.setValue_5;
+  Logger.log(`   ⏱️ 개별 쓰기 총합: ${results.setValueTotal}ms`);
+
+  // ===== 9. Batch setValues 측정 (비교용) =====
+  Logger.log('\n📌 [BONUS] setValues() 배치 쓰기 테스트');
+  const testRow2 = last + 2;
+  const t9_start = new Date().getTime();
+  sh.getRange(testRow2, 5, 1, 7).setValues([['테스트1', '테스트2', '테스트3', '', '', '테스트4', '테스트5']]);
+  const t9_end = new Date().getTime();
+  results.setValuesBatch = t9_end - t9_start;
+  Logger.log(`   ⏱️ 배치 쓰기 (7개 셀): ${results.setValuesBatch}ms`);
+  Logger.log(`   📊 개선율: ${Math.round((results.setValueTotal - results.setValuesBatch) / results.setValueTotal * 100)}%`);
+
+  // ===== 테스트 행 정리 =====
+  sh.deleteRows(testRow, 2);
+  Logger.log('\n🧹 테스트 행 삭제 완료');
+
+  // ===== 결과 요약 =====
+  Logger.log('\n' + '='.repeat(60));
+  Logger.log('📊 성능 측정 결과 요약');
+  Logger.log('='.repeat(60));
+  Logger.log(`1. openById:           ${results.openById}ms`);
+  Logger.log(`2. getSheetByName:     ${results.getSheetByName}ms`);
+  Logger.log(`3. getLastRow:         ${results.getLastRow}ms`);
+  Logger.log(`4. C열 전체 읽기:      ${results.readColumnC}ms ⚠️`);
+  Logger.log(`5. findIndex:          ${results.findIndex}ms`);
+  Logger.log(`6. reserveSCNumber:    ${results.reserveSCNumber}ms`);
+  Logger.log(`7. 단일 셀 읽기:       ${results.readSingleCell}ms`);
+  Logger.log(`8. setValue x5 (개별): ${results.setValueTotal}ms ⚠️`);
+  Logger.log(`9. setValues (배치):   ${results.setValuesBatch}ms ✅`);
+  Logger.log('='.repeat(60));
+
+  const estimatedTotal = results.openById + results.getLastRow + results.readColumnC +
+                         results.findIndex + results.reserveSCNumber +
+                         results.readSingleCell + results.setValueTotal;
+  Logger.log(`📊 예상 총 소요시간: ${estimatedTotal}ms (${(estimatedTotal/1000).toFixed(2)}초)`);
+
+  if (results.setValuesBatch) {
+    const optimizedTotal = estimatedTotal - results.setValueTotal + results.setValuesBatch;
+    Logger.log(`⚡ 배치 쓰기 적용 시: ${optimizedTotal}ms (${(optimizedTotal/1000).toFixed(2)}초)`);
+    Logger.log(`✅ 절감 시간: ${estimatedTotal - optimizedTotal}ms`);
+  }
+
+  return results;
+}
+
 // ===== 디버깅용 테스트 함수 =====
 function testUpdateVirtual() {
   Logger.log('🧪 [TEST] updateVirtual 성능 테스트 시작');
