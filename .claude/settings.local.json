@@ -6,7 +6,8 @@
       "Bash(clasp login)",
       "Bash(clasp push:*)",
       "Bash(dir page.html)",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "Bash(clasp status:*)"
     ],
     "deny": [],
     "ask": []

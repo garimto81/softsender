@@ -514,25 +514,42 @@ function getTypeRows(typeIdOverride) {
     return { ok: false, error: safeError.substring(0, 100) }; // 에러 메시지 길이 제한
   }
 }
-// ===== Phase 4: C열 일일 캐싱 (PropertiesService 활용) =====
+// ===== Phase 4: C열 캐싱 (CacheService + PropertiesService 하이브리드) =====
 function getCachedColumnC(cueId, ss, sh) {
-  const props = PropertiesService.getScriptProperties();
+  const cache = CacheService.getScriptCache();
   const today = Utilities.formatDate(new Date(), CFG.KST_TZ, 'yyyyMMdd');
   const cacheKey = `COLUMN_C_${cueId}_${today}`;
 
-  // 캐시 확인
-  const cached = props.getProperty(cacheKey);
-  if (cached) {
+  // Step 1: CacheService 확인 (6시간 TTL)
+  const cachedFromCache = cache.get(cacheKey);
+  if (cachedFromCache) {
     try {
-      const parsed = JSON.parse(cached);
-      Logger.log('✅ [C열 캐시] HIT - 캐시 사용');
+      const parsed = JSON.parse(cachedFromCache);
+      Logger.log('✅ [C열 캐시] HIT - CacheService');
       return { ok: true, data: parsed, source: 'cache' };
     } catch(e) {
-      Logger.log('⚠️ [C열 캐시] 파싱 에러 - 재로딩');
+      Logger.log('⚠️ [C열 캐시] CacheService 파싱 에러');
     }
   }
 
-  // 캐시 미스 - Sheets에서 로드
+  // Step 2: PropertiesService 확인 (일일 백업)
+  const props = PropertiesService.getScriptProperties();
+  const cachedFromProps = props.getProperty(cacheKey);
+  if (cachedFromProps) {
+    try {
+      const parsed = JSON.parse(cachedFromProps);
+      Logger.log('✅ [C열 캐시] HIT - PropertiesService (백업)');
+
+      // CacheService에 복원
+      cache.put(cacheKey, cachedFromProps, 21600); // 6시간
+
+      return { ok: true, data: parsed, source: 'cache' };
+    } catch(e) {
+      Logger.log('⚠️ [C열 캐시] PropertiesService 파싱 에러');
+    }
+  }
+
+  // Step 3: 캐시 미스 - Sheets에서 로드
   Logger.log('❌ [C열 캐시] MISS - Sheets 로딩');
   const last = sh.getLastRow();
   if (last < 2) {
@@ -540,14 +557,26 @@ function getCachedColumnC(cueId, ss, sh) {
   }
 
   const colC = sh.getRange(2, 3, last - 1, 1).getDisplayValues().flat();
-
-  // 캐시 저장 (9KB 제한 확인)
   const jsonStr = JSON.stringify(colC);
-  if (jsonStr.length < 9000) {
-    props.setProperty(cacheKey, jsonStr);
-    Logger.log(`✅ [C열 캐시] 저장 완료 (${jsonStr.length} bytes)`);
+
+  // Step 4: CacheService에 저장 (6시간)
+  try {
+    cache.put(cacheKey, jsonStr, 21600); // 6시간 TTL
+    Logger.log(`✅ [C열 캐시] CacheService 저장 완료 (${jsonStr.length} bytes)`);
+  } catch(e) {
+    Logger.log(`⚠️ [C열 캐시] CacheService 저장 실패: ${e.message}`);
+  }
+
+  // Step 5: PropertiesService에 백업 (일일 백업, 100KB 제한)
+  if (jsonStr.length < 100000) {
+    try {
+      props.setProperty(cacheKey, jsonStr);
+      Logger.log(`✅ [C열 캐시] PropertiesService 백업 완료 (${jsonStr.length} bytes)`);
+    } catch(e) {
+      Logger.log(`⚠️ [C열 캐시] PropertiesService 백업 실패: ${e.message}`);
+    }
   } else {
-    Logger.log(`⚠️ [C열 캐시] 크기 초과 (${jsonStr.length} bytes) - 캐시 생략`);
+    Logger.log(`⚠️ [C열 캐시] 크기 초과 (${jsonStr.length} bytes) - PropertiesService 백업 생략`);
   }
 
   return { ok: true, data: colC, source: 'fresh' };
