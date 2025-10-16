@@ -44,11 +44,16 @@ function testUpdateVirtual() {
 }
 
 function testReserveSCNumber() {
-  Logger.log('🧪 [TEST] reserveSCNumber (2단계 패턴) 테스트 시작');
+  Logger.log('🧪 [TEST] reserveSCNumber (하이브리드) 테스트 시작');
   const cueId = CFG.CUE_SHEET_ID;
   const ss = SpreadsheetApp.openById(cueId);
   const sh = ss.getSheetByName(CFG.CUE_TAB_VIRTUAL);
   const lastRow = sh.getLastRow();
+
+  // 테스트 전 카운터 값 확인
+  const props = PropertiesService.getScriptProperties();
+  const beforeCounter = parseInt(props.getProperty('SC_COUNTER') || '0', 10);
+  Logger.log(`📊 [TEST] 테스트 시작 전 카운터: ${beforeCounter}`);
 
   // 테스트용 행 3개 확보 (마지막 3행)
   const testRow1 = lastRow + 1;
@@ -76,6 +81,10 @@ function testReserveSCNumber() {
   const reserved3 = sh.getRange(testRow3, 6, 1, 1).getValue();
   Logger.log(`🧪 [3회차] 소요시간: ${end3 - start3}ms, 번호: ${num3}, F열: "${reserved3}"`);
 
+  // 테스트 후 카운터 값 확인
+  const afterCounter = parseInt(props.getProperty('SC_COUNTER') || '0', 10);
+  Logger.log(`📊 [TEST] 테스트 완료 후 카운터: ${afterCounter} (증가량: ${afterCounter - beforeCounter})`);
+
   Logger.log('🧪 [RESULT] 테스트 완료');
   Logger.log(`🧪 [RESULT] 번호 순차 증가 확인: ${num1} → ${num2} → ${num3}`);
 
@@ -90,6 +99,10 @@ function testReserveSCNumber() {
   const allReserved = hasReserved1 && hasReserved2 && hasReserved3;
   Logger.log(`🧪 [RESULT] F열 예약 마커 검증: ${allReserved ? '✅ 성공' : '❌ 실패'}`);
 
+  // Properties 카운터 검증
+  const counterMatch = (afterCounter === beforeCounter + 3);
+  Logger.log(`🧪 [RESULT] Properties 카운터 검증: ${counterMatch ? '✅ 성공' : '❌ 실패'} (기대: +3, 실제: +${afterCounter - beforeCounter})`);
+
   // 테스트 행 정리
   sh.deleteRows(testRow1, 3);
   Logger.log('🧪 [CLEANUP] 테스트 행 삭제 완료');
@@ -98,9 +111,72 @@ function testReserveSCNumber() {
     num1, num2, num3,
     time1: end1-start1, time2: end2-start2, time3: end3-start3,
     isSequential,
-    allReserved
+    allReserved,
+    counterMatch,
+    beforeCounter,
+    afterCounter
   };
 }
+
+// ===== SC 카운터 초기화 (1회만 실행) =====
+function initializeSCCounter() {
+  Logger.log('🔧 [SC-INIT] SC 카운터 초기화 시작');
+
+  const cueId = CFG.CUE_SHEET_ID;
+  const ss = SpreadsheetApp.openById(cueId);
+  const sh = ss.getSheetByName(CFG.CUE_TAB_VIRTUAL);
+
+  if (!sh) {
+    Logger.log('❌ [SC-INIT] Virtual 시트 없음');
+    return { ok: false, error: 'SHEET_NOT_FOUND' };
+  }
+
+  const last = sh.getLastRow();
+  Logger.log(`📊 [SC-INIT] 전체 행 수: ${last}`);
+
+  if (last < 2) {
+    Logger.log('⚠️ [SC-INIT] 빈 시트 - 카운터 0으로 초기화');
+    const props = PropertiesService.getScriptProperties();
+    props.setProperty('SC_COUNTER', '0');
+    props.setProperty('SC_LAST_SYNC', String(new Date().getTime()));
+    return { ok: true, counter: 0, message: '빈 시트 - 카운터 0' };
+  }
+
+  // ===== F열 전체 스캔 (초기화 시에만) =====
+  const t0 = new Date().getTime();
+  const colF = sh.getRange(2, 6, last - 1, 1).getValues().flat();
+  Logger.log(`⏱️ [SC-INIT] F열 읽기 (${last-1}행): ${new Date().getTime() - t0}ms`);
+
+  // SC 번호 추출
+  const t1 = new Date().getTime();
+  const scNumbers = colF
+    .map(v => {
+      const str = String(v || '').trim();
+      const match = str.match(/^SC(\d{3})_/);
+      return match ? parseInt(match[1], 10) : 0;
+    })
+    .filter(n => n > 0);
+  Logger.log(`⏱️ [SC-INIT] 번호 추출: ${new Date().getTime() - t1}ms, 개수: ${scNumbers.length}`);
+
+  // 최댓값 계산
+  const maxNum = scNumbers.length > 0 ? Math.max(...scNumbers) : 0;
+  Logger.log(`📊 [SC-INIT] F열 최댓값: ${maxNum}`);
+
+  // Properties에 저장
+  const props = PropertiesService.getScriptProperties();
+  props.setProperty('SC_COUNTER', String(maxNum));
+  props.setProperty('SC_LAST_SYNC', String(new Date().getTime()));
+
+  Logger.log(`✅ [SC-INIT] 초기화 완료 - 카운터: ${maxNum}`);
+
+  return {
+    ok: true,
+    counter: maxNum,
+    totalRows: last - 1,
+    scCount: scNumbers.length
+  };
+}
+
 function getBootstrap() {
   // 사용자별 저장된 Sheet ID 로드
   const userPrefs = getUserPreference();
@@ -307,7 +383,7 @@ function getTimeOptions(cueIdOverride) {
     return { ok:false, error:String(e) };
   }
 }
-// ===== SC 번호 예약 (2단계 패턴: Lock 내 예약) =====
+// ===== SC 번호 예약 (하이브리드: Properties 카운터 + 주기적 동기화) =====
 function reserveSCNumber(cueId, targetRow) {
   const lock = LockService.getScriptLock();
 
@@ -321,48 +397,75 @@ function reserveSCNumber(cueId, targetRow) {
 
     Logger.log('🔒 [SC-LOCK] Lock 획득 성공');
 
-    const ss = SpreadsheetApp.openById(cueId);
-    const sh = ss.getSheetByName(CFG.CUE_TAB_VIRTUAL);
+    const props = PropertiesService.getScriptProperties();
+    const lastSync = parseInt(props.getProperty('SC_LAST_SYNC') || '0', 10);
+    const now = new Date().getTime();
+    const SYNC_INTERVAL = 30 * 60 * 1000;  // 30분 (1800000ms)
 
-    if (!sh) {
-      Logger.log('⚠️ [SC-ERROR] Virtual 시트 없음 - 기본값 1 반환');
-      return 1;
-    }
+    // ===== 주기적 동기화 (30분마다 F열 검증) =====
+    if (now - lastSync > SYNC_INTERVAL) {
+      Logger.log('🔄 [SC-SYNC] 30분 경과 - F열 동기화 시작');
 
-    const last = sh.getLastRow();
-    if (last < 2) {
-      Logger.log('⚠️ [SC-EMPTY] 빈 시트 - 기본값 1 반환');
+      const ss = SpreadsheetApp.openById(cueId);
+      const sh = ss.getSheetByName(CFG.CUE_TAB_VIRTUAL);
 
-      // ===== F열에 예약 마커 작성 =====
-      if (targetRow >= 2) {
-        sh.getRange(targetRow, 6, 1, 1).setValue('SC001_RESERVED');
-        Logger.log(`✅ [SC-RESERVE] F열 예약: 행 ${targetRow} = "SC001_RESERVED"`);
+      if (sh) {
+        const last = sh.getLastRow();
+
+        if (last >= 2) {
+          // 마지막 20행만 스캔 (최적화)
+          const scanSize = 20;
+          const startRow = Math.max(2, last - scanSize + 1);
+          const t0 = new Date().getTime();
+          const colF = sh.getRange(startRow, 6, last - startRow + 1, 1).getValues().flat();
+          Logger.log(`⏱️ [SC-SYNC] F열 읽기 (${colF.length}행): ${new Date().getTime() - t0}ms`);
+
+          // SC 번호 추출
+          const scNumbers = colF
+            .map(v => {
+              const str = String(v || '').trim();
+              const match = str.match(/^SC(\d{3})_/);
+              return match ? parseInt(match[1], 10) : 0;
+            })
+            .filter(n => n > 0);
+
+          const maxFromSheet = scNumbers.length > 0 ? Math.max(...scNumbers) : 0;
+          const counterValue = parseInt(props.getProperty('SC_COUNTER') || '0', 10);
+
+          // 안전성: 시트와 카운터 중 큰 값 선택
+          const syncedValue = Math.max(maxFromSheet, counterValue);
+
+          if (syncedValue > counterValue) {
+            Logger.log(`⚠️ [SC-SYNC] 카운터 조정: ${counterValue} → ${syncedValue} (수동 수정 감지)`);
+          }
+
+          props.setProperty('SC_COUNTER', String(syncedValue));
+          Logger.log(`✅ [SC-SYNC] 동기화 완료: ${syncedValue} (시트 최댓값: ${maxFromSheet}, 이전 카운터: ${counterValue})`);
+        }
+
+        props.setProperty('SC_LAST_SYNC', String(now));
+      } else {
+        Logger.log('⚠️ [SC-SYNC] Virtual 시트 없음 - 동기화 건너뜀');
       }
-
-      return 1;
     }
 
-    // F열(파일명) 전체 읽기
-    const colF = sh.getRange(2, 6, last - 1, 1).getValues().flat();
+    // ===== 카운터 증가 (O(1) 성능) =====
+    const current = parseInt(props.getProperty('SC_COUNTER') || '0', 10);
+    const nextNum = current + 1;
+    props.setProperty('SC_COUNTER', String(nextNum));
 
-    // SC로 시작하는 번호 추출 (RESERVED 포함)
-    const scNumbers = colF
-      .map(v => {
-        const str = String(v || '').trim();
-        const match = str.match(/^SC(\d{3})_/);
-        return match ? parseInt(match[1], 10) : 0;
-      })
-      .filter(n => n > 0);
-
-    // 다음 번호 계산
-    const nextNum = scNumbers.length > 0 ? Math.max(...scNumbers) + 1 : 1;
-    Logger.log(`📊 [SC-NEXT] 다음 SC 번호: ${nextNum}`);
+    Logger.log(`📊 [SC-NEXT] 다음 SC 번호: ${nextNum} (Properties 카운터 기반)`);
 
     // ===== F열에 예약 마커 작성 (Lock 보호 구간) =====
     if (targetRow >= 2) {
-      const reserveMarker = `SC${String(nextNum).padStart(3, '0')}_RESERVED`;
-      sh.getRange(targetRow, 6, 1, 1).setValue(reserveMarker);
-      Logger.log(`✅ [SC-RESERVE] F열 예약: 행 ${targetRow} = "${reserveMarker}"`);
+      const ss = SpreadsheetApp.openById(cueId);
+      const sh = ss.getSheetByName(CFG.CUE_TAB_VIRTUAL);
+
+      if (sh) {
+        const reserveMarker = `SC${String(nextNum).padStart(3, '0')}_RESERVED`;
+        sh.getRange(targetRow, 6, 1, 1).setValue(reserveMarker);
+        Logger.log(`✅ [SC-RESERVE] F열 예약: 행 ${targetRow} = "${reserveMarker}"`);
+      }
     } else {
       Logger.log('⚠️ [SC-RESERVE] targetRow 없음 - 예약 생략');
     }
