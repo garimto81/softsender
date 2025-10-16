@@ -45,15 +45,29 @@ function syncToServer(id, payload, attempt = 1) {
   google.script.run
     .withSuccessHandler(async (res) => {
       if (res.ok) {
-        // 성공
+        // 성공 - 진행 로그 표시
+        if (res.logs && res.logs.length > 0) {
+          console.log('📋 [서버 진행 로그]:');
+          res.logs.forEach(log => {
+            console.log(`  ${log.step} ${log.message}${log.duration ? ` (${log.duration}ms)` : ''}`);
+          });
+        }
+
         await updateSyncQueue(id, 'success', res);
-        console.log(`✅ 동기화 성공: ${res.filename}`);
-        toast(`✅ 저장 완료: ${res.filename}`, true);
+        console.log(`✅ 동기화 성공: ${res.filename} (총 ${(res.totalTime/1000).toFixed(1)}초)`);
+        toast(`✅ 저장 완료: ${res.filename} (${(res.totalTime/1000).toFixed(1)}초)`, true);
 
         // 성공한 항목은 10초 후 삭제
         setTimeout(() => removeSyncQueueItem(id), 10000);
       } else {
-        // 서버 에러
+        // 서버 에러 - 에러 로그도 표시
+        if (res.logs && res.logs.length > 0) {
+          console.log('📋 [서버 진행 로그 (에러 발생)]:');
+          res.logs.forEach(log => {
+            console.log(`  ${log.step} ${log.message}${log.duration ? ` (${log.duration}ms)` : ''}`);
+          });
+        }
+
         console.error(`⚠️ 서버 에러: ${res.error}`);
         await handleSyncFailure(id, payload, attempt, res.error);
       }

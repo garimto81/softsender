@@ -729,61 +729,81 @@ function buildFileName(kind, hhmm, tableNo, playerOrLabel, modeData, scNumber) {
 }
 function updateVirtual(payload) {
   if (!payload || !payload.kind) return { ok:false, error:'BAD_PAYLOAD' };
+
+  // 진행 상태 로그 배열 (프론트엔드 전달용)
+  const progressLogs = [];
+  const addLog = (step, message, duration) => {
+    const log = { step, message, duration };
+    progressLogs.push(log);
+    Logger.log(`${step} ${message}${duration ? ` (${duration}ms)` : ''}`);
+  };
+
   try {
     const startTime = new Date().getTime();
-    Logger.log('⏱️ [START] updateVirtual 시작');
+    addLog('⏱️', '[START] 전송 시작', null);
 
     const cueId = String(payload.cueId || CFG.CUE_SHEET_ID).trim();
+
+    // Step 1: Sheet 연결
+    addLog('🔌', '[1/7] Google Sheets 연결 중...', null);
+    const t0 = new Date().getTime();
     const ss = SpreadsheetApp.openById(cueId);
     const sh = ss.getSheetByName(CFG.CUE_TAB_VIRTUAL);
     if (!sh) throw new Error(`SHEET_NOT_FOUND:${CFG.CUE_TAB_VIRTUAL}`);
+    addLog('✅', '연결 완료', new Date().getTime() - t0);
 
+    // Step 2: 행 수 확인
+    addLog('📊', '[2/7] 데이터 행 수 확인 중...', null);
     const t1 = new Date().getTime();
     const last = sh.getLastRow();
-    Logger.log(`⏱️ [1] getLastRow: ${new Date().getTime() - t1}ms`);
     if (last < 2) throw new Error('EMPTY_VIRTUAL');
+    addLog('✅', `${last-1}개 행 확인 완료`, new Date().getTime() - t1);
 
-    // ===== Phase 3: C~J열 배치 읽기 (8개 열 동시 로딩) =====
+    // Step 3: C~J열 배치 읽기
+    addLog('📥', '[3/7] 시간/데이터 불러오는 중... (C~J열)', null);
     const t2 = new Date().getTime();
     const colData = sh.getRange(2, 3, last-1, 8).getValues(); // C(3)~J(10) = 8개 열
     const colC = colData.map(r => {
-      // getDisplayValues()와 동일하게 처리 (시간 형식 유지)
       const val = r[0]; // C열 (인덱스 0)
       if (val instanceof Date) {
         return Utilities.formatDate(val, CFG.KST_TZ, 'HH:mm:ss');
       }
       return String(val || '').trim();
     });
-    Logger.log(`⏱️ [2] C~J열 배치 읽기 (${last-1}행 x 8열): ${new Date().getTime() - t2}ms`);
+    addLog('✅', `${last-1}행 x 8열 읽기 완료`, new Date().getTime() - t2);
 
+    // Step 4: 시간 매칭
+    addLog('🔍', '[4/7] 시간 매칭 중...', null);
+    const t3 = new Date().getTime();
     const nowKST = new Date();
     const nowHHmm = Utilities.formatDate(nowKST, CFG.KST_TZ, 'HH:mm');
     const pickedStr = (payload.autoNow ? nowHHmm : (payload.pickedTime||'')).trim();
     if (!/^\d{2}:\d{2}$/.test(pickedStr)) throw new Error('TIME_FORMAT');
 
-    const t3 = new Date().getTime();
     const rowIdx0 = colC.findIndex(v=>{
       const s = String(v).trim();
       if (/^\d{2}:\d{2}$/.test(s)) return s===pickedStr;
       const m = s.match(/^(\d{2}:\d{2}):\d{2}$/);
       return m ? (m[1]===pickedStr) : false;
     });
-    Logger.log(`⏱️ [3] 시간 매칭: ${new Date().getTime() - t3}ms`);
-    if (rowIdx0 < 0) return { ok:false, error:`NO_MATCH_TIME:${pickedStr}` };
+    if (rowIdx0 < 0) return { ok:false, error:`NO_MATCH_TIME:${pickedStr}`, logs: progressLogs };
     const row = 2 + rowIdx0;
+    addLog('✅', `시간 "${pickedStr}" 매칭 완료 (행 ${row})`, new Date().getTime() - t3);
 
-    // ===== C열에서 실제 매칭된 시간값 추출 (파일명용) =====
+    // 파일명용 시간값 추출
     const matchedTimeStr = String(colC[rowIdx0] || '').trim();
     const hhmmMatch = matchedTimeStr.match(/^(\d{2}):(\d{2})/);
     const hhmmForFile = hhmmMatch ? `${hhmmMatch[1]}${hhmmMatch[2]}` : '0000';
-    Logger.log(`📅 [3-1] C열 매칭 시간: "${matchedTimeStr}" → 파일명용: "${hhmmForFile}"`);
 
-    // ===== Phase 2: Sheet 객체 재사용 (reserveSCNumber에 전달) =====
+    // Step 5: SC 번호 발급
+    addLog('🔢', '[5/7] SC 번호 발급 중...', null);
     const t4 = new Date().getTime();
-    const scNumber = reserveSCNumber(cueId, row, ss, sh);  // Sheet 객체 재사용
-    Logger.log(`⏱️ [4] reserveSCNumber: ${new Date().getTime() - t4}ms`);
+    const scNumber = reserveSCNumber(cueId, row, ss, sh);
+    addLog('✅', `SC${String(scNumber).padStart(3, '0')} 발급 완료`, new Date().getTime() - t4);
 
-    // 파일명 자동 생성 (C열 매칭 시간 사용)
+    // Step 6: 데이터 준비
+    addLog('📝', '[6/7] 전송 데이터 준비 중...', null);
+    const t5 = new Date().getTime();
     const fVal = buildFileName(
       payload.kind,
       hhmmForFile,
@@ -793,44 +813,51 @@ function updateVirtual(payload) {
       scNumber
     );
 
-    const t5 = new Date().getTime();
     const eVal = payload.eFix || CFG.DEFAULT_STATUS_INCOMPLETE;
     const gVal = payload.gFix || CFG.DEFAULT_CONTENT_TYPE;
     const jBlock = String(payload.jBlock||'').replace(/\r\n/g,'\n');
     if (!fVal) throw new Error('EMPTY_FILENAME');
     if (!jBlock) throw new Error('EMPTY_JBLOCK');
-    Logger.log(`⏱️ [5] 파일명/데이터 준비: ${new Date().getTime() - t5}ms`);
 
-    // ===== Phase 3: J열 사전 읽기 완료 (이미 colData에 로드됨) =====
-    const t6 = new Date().getTime();
-    const jCurrent = colData[rowIdx0][7]; // J열 (인덱스: C=0, D=1...J=7)
-    Logger.log(`⏱️ [6] J열 읽기 (사전 로딩): ${new Date().getTime() - t6}ms`);
-
+    const jCurrent = colData[rowIdx0][7]; // J열 (사전 로딩됨)
     const jCurrentStr = jCurrent ? String(jCurrent).replace(/\r\n/g,'\n') : '';
     const needsLF = jCurrentStr && !jCurrentStr.endsWith('\n') ? '\n' : '';
     const glue = jCurrentStr ? (needsLF + '\n') : '';
     const jNew = jCurrentStr + glue + jBlock;
 
-    // K열 값 결정 (Validation 호환: "미완료"만 사용)
-    const kVal = CFG.DEFAULT_STATUS_INCOMPLETE; // "미완료" (validation 통과)
+    const kVal = CFG.DEFAULT_STATUS_INCOMPLETE; // "미완료"
+    addLog('✅', '데이터 준비 완료', new Date().getTime() - t5);
 
-    // ===== Phase 1: Batch setValues (E/F/G + J/K 한번에 쓰기) =====
+    // Step 7: Batch 쓰기
+    addLog('💾', '[7/7] Google Sheets 업데이트 중...', null);
     const t7 = new Date().getTime();
     const batchData = [
       [eVal, fVal, gVal, '', '', jNew, kVal]
       // E(5), F(6), G(7), H(8), I(9), J(10), K(11)
     ];
     sh.getRange(row, 5, 1, 7).setValues(batchData);
-    Logger.log(`⏱️ [7] Batch 쓰기 (E~K 7개 셀): ${new Date().getTime() - t7}ms`);
+    addLog('✅', '7개 셀 업데이트 완료', new Date().getTime() - t7);
 
     const totalTime = new Date().getTime() - startTime;
-    Logger.log(`⏱️ [END] updateVirtual 완료 - 총 소요시간: ${totalTime}ms`);
+    addLog('🎉', `[완료] 전송 성공 (총 ${(totalTime/1000).toFixed(1)}초)`, totalTime);
 
-    return { ok:true, row, time:pickedStr, filename: fVal, scNumber };
+    return {
+      ok: true,
+      row,
+      time: pickedStr,
+      filename: fVal,
+      scNumber,
+      logs: progressLogs,
+      totalTime
+    };
   } catch(e) {
-
     const safeError = e.message || String(e);
-    Logger.log('updateVirtual error:', e);
-    return { ok:false, error: safeError.substring(0, 100) };
+    Logger.log('❌ updateVirtual error:', e);
+    addLog('❌', `에러 발생: ${safeError}`, null);
+    return {
+      ok: false,
+      error: safeError.substring(0, 100),
+      logs: progressLogs
+    };
   }
 }
