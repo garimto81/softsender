@@ -343,9 +343,9 @@ function updateVirtual(payload) {
     // K열 값 결정 (모드에 따라 분기)
     let kVal = '소프트 콘텐츠'; // 기본값
     if (payload.kind === 'PU') {
-      kVal = '플레이어 업데이트';
+      kVal = "소프트 콘텐츠\n'플레이어 업데이트'";
     } else if (payload.kind === 'L3') {
-      kVal = '플레이어 소개';
+      kVal = "소프트 콘텐츠\n'플레이어 소개'";
     }
 
     // E/F/G/J/K 개별 업데이트 (B/C는 건드리지 않음)
