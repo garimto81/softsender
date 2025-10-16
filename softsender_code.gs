@@ -330,17 +330,15 @@ function updateVirtual(payload) {
     if (!fVal) throw new Error('EMPTY_FILENAME');
     if (!jBlock) throw new Error('EMPTY_JBLOCK');
 
-    // ===== Batch API 최적화: 1회 읽기 + 1회 쓰기 =====
-    // 기존: 5번 개별 호출 (getRange × 5)
-    // 개선: 1번 읽기 + 1번 쓰기
+    // ===== Batch API 최적화: E/F/G/J/K만 개별 업데이트 (B/C 완전 배제) =====
+    // B/C열은 읽지도 쓰지도 않음
 
-    const existingRow = sh.getRange(row, 1, 1, 11).getValues()[0];
-
-    // J열 기존 내용 병합
-    let jCurrent = existingRow[9] ? String(existingRow[9]).replace(/\r\n/g,'\n') : '';
-    const needsLF = jCurrent && !jCurrent.endsWith('\n') ? '\n' : '';
-    const glue = jCurrent ? (needsLF + '\n') : '';
-    const jNew = jCurrent + glue + jBlock;
+    // J열 기존 내용 읽기 (병합용)
+    const jCurrent = sh.getRange(row, 10, 1, 1).getValue();
+    const jCurrentStr = jCurrent ? String(jCurrent).replace(/\r\n/g,'\n') : '';
+    const needsLF = jCurrentStr && !jCurrentStr.endsWith('\n') ? '\n' : '';
+    const glue = jCurrentStr ? (needsLF + '\n') : '';
+    const jNew = jCurrentStr + glue + jBlock;
 
     // K열 값 결정 (모드에 따라 분기)
     let kVal = '소프트 콘텐츠'; // 기본값
@@ -350,17 +348,12 @@ function updateVirtual(payload) {
       kVal = '플레이어 소개';
     }
 
-    // 업데이트할 행 준비
-    const updatedRow = [...existingRow];
-    // B열(updatedRow[1]), C열(updatedRow[2])은 기존 값 유지 (건드리지 않음)
-    updatedRow[4] = eVal;              // E (5번째 컬럼, 인덱스 4)
-    updatedRow[5] = fVal;              // F
-    updatedRow[6] = gVal;              // G
-    updatedRow[9] = jNew;              // J
-    updatedRow[10] = kVal;             // K
-
-    // 1회 배치 쓰기
-    sh.getRange(row, 1, 1, 11).setValues([updatedRow]);
+    // E/F/G/J/K 개별 업데이트 (B/C는 건드리지 않음)
+    sh.getRange(row, 5, 1, 1).setValue(eVal);   // E열
+    sh.getRange(row, 6, 1, 1).setValue(fVal);   // F열
+    sh.getRange(row, 7, 1, 1).setValue(gVal);   // G열
+    sh.getRange(row, 10, 1, 1).setValue(jNew);  // J열
+    sh.getRange(row, 11, 1, 1).setValue(kVal);  // K열
 
     return { ok:true, row, time:pickedStr, filename: fVal, scNumber };
   } catch(e) {
