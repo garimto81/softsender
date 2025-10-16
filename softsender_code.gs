@@ -514,15 +514,59 @@ function getTypeRows(typeIdOverride) {
     return { ok: false, error: safeError.substring(0, 100) }; // 에러 메시지 길이 제한
   }
 }
+// ===== Phase 4: C열 일일 캐싱 (PropertiesService 활용) =====
+function getCachedColumnC(cueId, ss, sh) {
+  const props = PropertiesService.getScriptProperties();
+  const today = Utilities.formatDate(new Date(), CFG.KST_TZ, 'yyyyMMdd');
+  const cacheKey = `COLUMN_C_${cueId}_${today}`;
+
+  // 캐시 확인
+  const cached = props.getProperty(cacheKey);
+  if (cached) {
+    try {
+      const parsed = JSON.parse(cached);
+      Logger.log('✅ [C열 캐시] HIT - 캐시 사용');
+      return { ok: true, data: parsed, source: 'cache' };
+    } catch(e) {
+      Logger.log('⚠️ [C열 캐시] 파싱 에러 - 재로딩');
+    }
+  }
+
+  // 캐시 미스 - Sheets에서 로드
+  Logger.log('❌ [C열 캐시] MISS - Sheets 로딩');
+  const last = sh.getLastRow();
+  if (last < 2) {
+    return { ok: true, data: [], source: 'fresh' };
+  }
+
+  const colC = sh.getRange(2, 3, last - 1, 1).getDisplayValues().flat();
+
+  // 캐시 저장 (9KB 제한 확인)
+  const jsonStr = JSON.stringify(colC);
+  if (jsonStr.length < 9000) {
+    props.setProperty(cacheKey, jsonStr);
+    Logger.log(`✅ [C열 캐시] 저장 완료 (${jsonStr.length} bytes)`);
+  } else {
+    Logger.log(`⚠️ [C열 캐시] 크기 초과 (${jsonStr.length} bytes) - 캐시 생략`);
+  }
+
+  return { ok: true, data: colC, source: 'fresh' };
+}
+
 function getTimeOptions(cueIdOverride) {
   try {
     const cueId = String(cueIdOverride || CFG.CUE_SHEET_ID).trim();
     const ss = SpreadsheetApp.openById(cueId);
     const sh = ss.getSheetByName(CFG.CUE_TAB_VIRTUAL);
     if (!sh) throw new Error(`SHEET_NOT_FOUND:${CFG.CUE_TAB_VIRTUAL}`);
-    const last = sh.getLastRow();
-    if (last < 2) return { ok: true, list: [], cueId };
-    const colC = sh.getRange(2, 3, last - 1, 1).getDisplayValues().flat();
+
+    // Phase 4: C열 캐싱 적용
+    const cacheResult = getCachedColumnC(cueId, ss, sh);
+    if (!cacheResult.ok) {
+      throw new Error('CACHE_ERROR');
+    }
+    const colC = cacheResult.data;
+
     const nowKST = new Date();
     const center = Utilities.formatDate(nowKST, CFG.KST_TZ, CFG.TIME_DISPLAY); // "HH:mm"
     const toMin = (s) => {
@@ -545,7 +589,8 @@ function getTimeOptions(cueIdOverride) {
   }
 }
 // ===== SC 번호 예약 (하이브리드: Properties 카운터 + 주기적 동기화) =====
-function reserveSCNumber(cueId, targetRow) {
+// Phase 2 최적화: Sheet 객체 재사용 (ss, sh 파라미터 추가)
+function reserveSCNumber(cueId, targetRow, ss, sh) {
   const lock = LockService.getScriptLock();
 
   try {
@@ -567,18 +612,19 @@ function reserveSCNumber(cueId, targetRow) {
     if (now - lastSync > SYNC_INTERVAL) {
       Logger.log('🔄 [SC-SYNC] 30분 경과 - F열 동기화 시작');
 
-      const ss = SpreadsheetApp.openById(cueId);
-      const sh = ss.getSheetByName(CFG.CUE_TAB_VIRTUAL);
+      // Phase 2: Sheet 객체 재사용 (파라미터로 받은 ss, sh 사용)
+      const syncSs = ss || SpreadsheetApp.openById(cueId);
+      const syncSh = sh || syncSs.getSheetByName(CFG.CUE_TAB_VIRTUAL);
 
-      if (sh) {
-        const last = sh.getLastRow();
+      if (syncSh) {
+        const last = syncSh.getLastRow();
 
         if (last >= 2) {
           // 마지막 20행만 스캔 (최적화)
           const scanSize = 20;
           const startRow = Math.max(2, last - scanSize + 1);
           const t0 = new Date().getTime();
-          const colF = sh.getRange(startRow, 6, last - startRow + 1, 1).getValues().flat();
+          const colF = syncSh.getRange(startRow, 6, last - startRow + 1, 1).getValues().flat();
           Logger.log(`⏱️ [SC-SYNC] F열 읽기 (${colF.length}행): ${new Date().getTime() - t0}ms`);
 
           // SC 번호 추출
@@ -619,12 +665,12 @@ function reserveSCNumber(cueId, targetRow) {
 
     // ===== F열에 예약 마커 작성 (Lock 보호 구간) =====
     if (targetRow >= 2) {
-      const ss = SpreadsheetApp.openById(cueId);
-      const sh = ss.getSheetByName(CFG.CUE_TAB_VIRTUAL);
+      // Phase 2: Sheet 객체 재사용
+      const reserveSh = sh || ss.getSheetByName(CFG.CUE_TAB_VIRTUAL);
 
-      if (sh) {
+      if (reserveSh) {
         const reserveMarker = `SC${String(nextNum).padStart(3, '0')}_RESERVED`;
-        sh.getRange(targetRow, 6, 1, 1).setValue(reserveMarker);
+        reserveSh.getRange(targetRow, 6, 1, 1).setValue(reserveMarker);
         Logger.log(`✅ [SC-RESERVE] F열 예약: 행 ${targetRow} = "${reserveMarker}"`);
       }
     } else {
@@ -697,9 +743,18 @@ function updateVirtual(payload) {
     Logger.log(`⏱️ [1] getLastRow: ${new Date().getTime() - t1}ms`);
     if (last < 2) throw new Error('EMPTY_VIRTUAL');
 
+    // ===== Phase 3: C~J열 배치 읽기 (8개 열 동시 로딩) =====
     const t2 = new Date().getTime();
-    const colC = sh.getRange(2,3,last-1,1).getDisplayValues().flat();
-    Logger.log(`⏱️ [2] C열 읽기 (${last-1}행): ${new Date().getTime() - t2}ms`);
+    const colData = sh.getRange(2, 3, last-1, 8).getValues(); // C(3)~J(10) = 8개 열
+    const colC = colData.map(r => {
+      // getDisplayValues()와 동일하게 처리 (시간 형식 유지)
+      const val = r[0]; // C열 (인덱스 0)
+      if (val instanceof Date) {
+        return Utilities.formatDate(val, CFG.KST_TZ, 'HH:mm:ss');
+      }
+      return String(val || '').trim();
+    });
+    Logger.log(`⏱️ [2] C~J열 배치 읽기 (${last-1}행 x 8열): ${new Date().getTime() - t2}ms`);
 
     const nowKST = new Date();
     const nowHHmm = Utilities.formatDate(nowKST, CFG.KST_TZ, 'HH:mm');
@@ -723,9 +778,9 @@ function updateVirtual(payload) {
     const hhmmForFile = hhmmMatch ? `${hhmmMatch[1]}${hhmmMatch[2]}` : '0000';
     Logger.log(`📅 [3-1] C열 매칭 시간: "${matchedTimeStr}" → 파일명용: "${hhmmForFile}"`);
 
-    // ===== 2단계: SC 번호 예약 (Lock 내) =====
+    // ===== Phase 2: Sheet 객체 재사용 (reserveSCNumber에 전달) =====
     const t4 = new Date().getTime();
-    const scNumber = reserveSCNumber(cueId, row);  // Lock 보호 구간 내 F열 예약
+    const scNumber = reserveSCNumber(cueId, row, ss, sh);  // Sheet 객체 재사용
     Logger.log(`⏱️ [4] reserveSCNumber: ${new Date().getTime() - t4}ms`);
 
     // 파일명 자동 생성 (C열 매칭 시간 사용)
@@ -746,48 +801,27 @@ function updateVirtual(payload) {
     if (!jBlock) throw new Error('EMPTY_JBLOCK');
     Logger.log(`⏱️ [5] 파일명/데이터 준비: ${new Date().getTime() - t5}ms`);
 
-    // ===== Batch API 최적화: E/F/G/J/K만 개별 업데이트 (B/C 완전 배제) =====
-    // B/C열은 읽지도 쓰지도 않음
-
-    // J열 기존 내용 읽기 (병합용)
+    // ===== Phase 3: J열 사전 읽기 완료 (이미 colData에 로드됨) =====
     const t6 = new Date().getTime();
-    const jCurrent = sh.getRange(row, 10, 1, 1).getValue();
-    Logger.log(`⏱️ [6] J열 읽기: ${new Date().getTime() - t6}ms`);
+    const jCurrent = colData[rowIdx0][7]; // J열 (인덱스: C=0, D=1...J=7)
+    Logger.log(`⏱️ [6] J열 읽기 (사전 로딩): ${new Date().getTime() - t6}ms`);
 
     const jCurrentStr = jCurrent ? String(jCurrent).replace(/\r\n/g,'\n') : '';
     const needsLF = jCurrentStr && !jCurrentStr.endsWith('\n') ? '\n' : '';
     const glue = jCurrentStr ? (needsLF + '\n') : '';
     const jNew = jCurrentStr + glue + jBlock;
 
-    // K열 값 결정 (모드에 따라 분기)
-    let kVal = '소프트 콘텐츠'; // 기본값
-    if (payload.kind === 'PU') {
-      kVal = "소프트 콘텐츠\n'플레이어 업데이트'";
-    } else if (payload.kind === 'L3') {
-      kVal = "소프트 콘텐츠\n'플레이어 소개'";
-    }
+    // K열 값 결정 (Validation 호환: "미완료"만 사용)
+    const kVal = CFG.DEFAULT_STATUS_INCOMPLETE; // "미완료" (validation 통과)
 
-    // E/F/G/J/K 개별 업데이트 (B/C는 건드리지 않음)
+    // ===== Phase 1: Batch setValues (E/F/G + J/K 한번에 쓰기) =====
     const t7 = new Date().getTime();
-    sh.getRange(row, 5, 1, 1).setValue(eVal);   // E열
-    Logger.log(`⏱️ [7-1] E열 쓰기: ${new Date().getTime() - t7}ms`);
-
-    // ===== 2단계: 최종 파일명 덮어쓰기 (RESERVED 마커 교체) =====
-    const t8 = new Date().getTime();
-    sh.getRange(row, 6, 1, 1).setValue(fVal);   // F열: 예약 마커 → 최종 파일명
-    Logger.log(`⏱️ [7-2] F열 최종 쓰기: ${new Date().getTime() - t8}ms`);
-
-    const t9 = new Date().getTime();
-    sh.getRange(row, 7, 1, 1).setValue(gVal);   // G열
-    Logger.log(`⏱️ [7-3] G열 쓰기: ${new Date().getTime() - t9}ms`);
-
-    const t10 = new Date().getTime();
-    sh.getRange(row, 10, 1, 1).setValue(jNew);  // J열
-    Logger.log(`⏱️ [7-4] J열 쓰기: ${new Date().getTime() - t10}ms`);
-
-    const t11 = new Date().getTime();
-    sh.getRange(row, 11, 1, 1).setValue(kVal);  // K열
-    Logger.log(`⏱️ [7-5] K열 쓰기: ${new Date().getTime() - t11}ms`);
+    const batchData = [
+      [eVal, fVal, gVal, '', '', jNew, kVal]
+      // E(5), F(6), G(7), H(8), I(9), J(10), K(11)
+    ];
+    sh.getRange(row, 5, 1, 7).setValues(batchData);
+    Logger.log(`⏱️ [7] Batch 쓰기 (E~K 7개 셀): ${new Date().getTime() - t7}ms`);
 
     const totalTime = new Date().getTime() - startTime;
     Logger.log(`⏱️ [END] updateVirtual 완료 - 총 소요시간: ${totalTime}ms`);
