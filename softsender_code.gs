@@ -352,8 +352,7 @@ function updateVirtual(payload) {
 
     // 업데이트할 행 준비
     const updatedRow = [...existingRow];
-    updatedRow[1] = '';                // B열 비우기 (참조만 하고 입력하지 않음)
-    updatedRow[2] = '';                // C열 비우기 (참조만 하고 입력하지 않음)
+    // B열(updatedRow[1]), C열(updatedRow[2])은 기존 값 유지 (건드리지 않음)
     updatedRow[4] = eVal;              // E (5번째 컬럼, 인덱스 4)
     updatedRow[5] = fVal;              // F
     updatedRow[6] = gVal;              // G
