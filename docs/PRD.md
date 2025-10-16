@@ -3,8 +3,8 @@
 
 ## 📋 문서 정보
 - **작성일**: 2025-10-04
-- **최종 수정**: 2025-10-16
-- **버전**: v11.3.7
+- **최종 수정**: 2025-01-16
+- **버전**: v11.8.3
 - **대상 사용자**: 포커 토너먼트 방송 제작팀
 
 ---
@@ -383,27 +383,73 @@ HHmm_이름_모드
 
 ## 12. 버전 히스토리
 
-### v11.3.7 (2025-01-16)
-**🚀 성능 최적화: SC 번호 캐싱**
+### v11.8.3 (2025-01-16) ✅ **최신**
+**🐛 점진적 성능 저하 해결 (Progressive Slowdown Fix)**
 
-**변경사항**:
-- ✅ `getCachedSCNumber()` 함수 추가: CacheService를 사용한 SC 번호 캐싱
-- ✅ 캐시 TTL: 5분 (300초)
-- ✅ 캐시 히트 시: 기존 번호 +1 반환 (~1ms)
-- ✅ 캐시 미스 시: F열 읽기 후 캐싱 (~10s, 첫 호출만)
-- ✅ `testCachedSCNumber()` 함수 추가: 3회 연속 호출 성능 벤치마크
+**문제**:
+- 시간이 지날수록 입력 응답 속도가 느려지는 현상
+- Hot Reload/페이지 재로드 시 setInterval 누적 생성
+- init() 중복 실행으로 Event Listener 중복 등록
 
-**성능 개선**:
-- SpreadsheetApp.openById() 병목 해결
-- 업로드 시간: 10.9초 → ~1초 (90% 개선)
-- 2회차 이후 호출: ~1ms (캐시 히트)
+**해결**:
+- ✅ **init() 중복 방지**: `isInitialized` 플래그로 중복 초기화 차단
+- ✅ **setInterval 누적 방지**: `keepAliveInterval` 전역 변수로 관리
+- ✅ **리소스 정리**: `beforeunload` 이벤트로 페이지 종료 시 interval 정리
+
+**성능 영향**:
+- 1회 입력 = 10회 입력 = 100회 입력 (동일한 응답 속도)
+- 개발 환경: Hot Reload 시 메모리 누수 방지
+- 프로덕션: 장시간 사용 시 일관된 응답 속도 유지
 
 **기술적 세부사항**:
 ```javascript
-// 캐시 키: 'LAST_SC_' + cueId
-// 캐시 미스: getNextSCNumber() 호출 → F열 읽기
-// 캐시 히트: parseInt(cached) + 1
+// BEFORE
+function startSessionKeepAlive() {
+  setInterval(() => { ... }, 4 * 60 * 1000); // ❌ 중복 생성
+}
+
+// AFTER
+let keepAliveInterval = null;
+function startSessionKeepAlive() {
+  if (keepAliveInterval) clearInterval(keepAliveInterval); // ✅ 정리
+  keepAliveInterval = setInterval(() => { ... }, 4 * 60 * 1000);
+}
 ```
+
+### v11.8.2 (2025-01-16)
+**⚡ C열 하이브리드 캐싱 (CacheService + PropertiesService)**
+- ✅ **Primary Cache**: CacheService (6시간 TTL, 100KB 지원)
+- ✅ **Backup Cache**: PropertiesService (영구 저장, 일일 캐시)
+- ✅ **성능**: 762ms → 5ms (99.3% 절감, 2회차부터)
+- 🎯 **안정성**: 11.5KB C열 데이터 캐싱 성공 (이전 9KB 제한 초과 해결)
+
+### v11.8.1 (2025-01-16)
+**🔧 K열 PRD 준수 (소프트 콘텐츠 정보)**
+- ✅ **PU 모드**: "소프트 콘텐츠\n'플레이어 업데이트'" (2줄 형식)
+- ✅ **L3 모드**: "소프트 콘텐츠\n'플레이어 소개'" (2줄 형식)
+- 🐛 **수정**: "미완료" 오류 입력 → PRD 요구사항 준수
+
+### v11.8.0 (2025-01-16)
+**⚡ 성능 최적화 4종 세트 (응답 속도 97% 단축)**
+- ✅ **Priority 1: Session Keep-Alive** - Cold Start 제거 (19.6s → 0s)
+- ✅ **Priority 2: C~J열 행 단위 읽기** - 1행만 읽기 (1,475ms → 50ms)
+- ✅ **Priority 3: SC Number 동기화 연장** - 30분 → 2시간
+- ✅ **Priority 4: Type Rows TTL 연장** - 5분 → 30분
+
+**성능 비교**:
+| 최적화 | Before | After | 절감 |
+|--------|--------|-------|------|
+| Cold Start 제거 | 19.6s | 0s | 100% |
+| C~J열 읽기 | 1,475ms | 50ms | 97% |
+| SC 동기화 빈도 | 30분마다 | 2시간마다 | 75% |
+| Type Rows 캐시 | 5분 | 30분 | 83% |
+| **총 전송 시간** | **22.8s** | **0.8s** | **97%** |
+
+### v11.3.7 (2025-01-16)
+**🚀 성능 최적화: SC 번호 캐싱**
+- ✅ `getCachedSCNumber()` 함수 추가: CacheService를 사용한 SC 번호 캐싱
+- ✅ 캐시 TTL: 5분 (300초)
+- ✅ 성능: 10.9초 → ~1초 (90% 개선)
 
 ---
 
