@@ -1,6 +1,6 @@
 <!--
-  Soft Content Sender v11.12.0
-  Build Time: 2025-10-17T11:00:25.035Z
+  Soft Content Sender v11.13.0
+  Build Time: 2025-10-17T12:28:48.431Z
   Build Mode: NORMAL
 
   ⚠️  AUTO-GENERATED FILE - DO NOT EDIT DIRECTLY
@@ -924,6 +924,7 @@ function clearIds(){
     })
     .clearUserPreference();
 }
+
 function renderIdsHint(){
   const c = state.cueId ? `CUE=${state.cueId}` : 'CUE=기본값';
   const t = state.typeId? `TYPE=${state.typeId}`: 'TYPE=기본값';
@@ -960,8 +961,9 @@ function indexTypeRows(rows){
 function normSeat(s){
   const t = String(s||'').trim();
   if(!t) return '';
-  const n = t.replace(/\s/g,'').replace(/^#?/,'');
-  return '#'+n;
+  // "seat 8", "Seat8", "#8", "08" 등 모두 처리
+  const n = t.replace(/\s/g,'').replace(/^#?/,'').replace(/^seat/i, '').replace(/^0+/, '');
+  return n ? '#'+n : '';
 }
 
 /* 플레이어 조회 헬퍼 함수 */
@@ -1019,8 +1021,14 @@ function fillSeats(){
   const arr = state.byRoomTable[key] || [];
 
   // Seat 드롭다운: "#1 - John Doe ⭐" 형식 (KeyPlayer 표시)
+  console.log(`📋 [fillSeats] 테이블 ${key}: 전체 ${arr.length}명`);
+  console.log(`📋 원본 좌석:`, arr.map(r => r.seat));
+
   const seats = [...new Set(arr.map(r => normSeat(r.seat)))]
+    .filter(s => s) // 빈 값 제거
     .sort((a,b) => Number(a.replace('#','')) - Number(b.replace('#','')));
+
+  console.log(`📋 정규화된 좌석 (${seats.length}개):`, seats);
 
   const fragment = document.createDocumentFragment();
   seats.forEach(s => {
@@ -1162,10 +1170,22 @@ function getSelectedPlayer(){
   return findPlayerBySeat(key, seat);
 }
 
-/* ===== 데이터 재로드 ===== */
+/* ===== 데이터 재로드 (Stale-While-Revalidate) ===== */
 function reloadSheets(){
-  setStatus('시트 정보 로딩…');
-  updateLoading('⏰ 시간 옵션 로드 중...', 'CUE Sheet에서 시간 목록 불러오는 중...');
+  // Step 1: 메모리 캐시가 있으면 즉시 표시 (100ms)
+  if (state.typeRows && state.typeRows.length > 0) {
+    console.log('🚀 [SWR] 메모리 캐시 즉시 표시:', state.typeRows.length, '행');
+    indexTypeRows(state.typeRows);
+    fillRoomTables();
+    setStatus('준비됨 (백그라운드 갱신 중...)');
+
+    // 캐시된 데이터가 있으면 로딩 오버레이 숨김
+    hideLoading();
+  } else {
+    // 캐시 없으면 로딩 표시
+    setStatus('시트 정보 로딩…');
+    updateLoading('⏰ 시간 옵션 로드 중...', 'CUE Sheet에서 시간 목록 불러오는 중...');
+  }
 
   // PC 로컬 시간 생성 (HH:mm 형식)
   const now = new Date();
@@ -1173,23 +1193,34 @@ function reloadSheets(){
   const minutes = String(now.getMinutes()).padStart(2, '0');
   const clientTime = `${hours}:${minutes}`;
 
+  // Step 2: 백그라운드에서 최신 데이터 로드 (시간 옵션)
   google.script.run.withSuccessHandler(res=>{
     if(res?.ok){
       state.timeCenter = res.center || '';
       fillTimes(res.list||[], res.center||'');
       rebuildFileName();
-      updateLoading('✅ 시간 옵션 완료', `${res.list?.length || 0}개 시간 옵션 로드됨`);
+
+      if (!state.typeRows || state.typeRows.length === 0) {
+        updateLoading('✅ 시간 옵션 완료', `${res.list?.length || 0}개 시간 옵션 로드됨`);
+      }
     }
     else {
       toast('시간 목록 로딩 실패: '+(res?.error||'unknown'), false);
-      updateLoading('❌ 시간 옵션 실패', res?.error || 'unknown');
     }
   }).getTimeOptions(state.cueId || null, clientTime);
 
-  updateLoading('👥 플레이어 정보 로드 중...', 'TYPE Sheet에서 플레이어 데이터 불러오는 중...');
+  if (!state.typeRows || state.typeRows.length === 0) {
+    updateLoading('👥 플레이어 정보 로드 중...', 'TYPE Sheet에서 플레이어 데이터 불러오는 중...');
+  }
+
+  // Step 3: 백그라운드에서 최신 데이터 로드 (플레이어 정보 + 버전 체크)
+  const previousCount = state.typeRows?.length || 0;
+  const hadCache = state.typeRows && state.typeRows.length > 0;
 
   google.script.run.withSuccessHandler(res=>{
     if(res?.ok){
+      const newCount = res.rows?.length || 0;
+
       state.typeRows = res.rows||[];
 
       // 디버깅: KeyPlayer 데이터 확인
@@ -1200,22 +1231,32 @@ function reloadSheets(){
         console.log(`  - ${p.seat} ${p.player} (${p.room} Table ${p.tno})`);
       });
 
-      updateLoading('✅ 플레이어 정보 완료', `${state.typeRows.length}명 플레이어 로드됨 (⭐ ${keyPlayers.length}명 키 플레이어)`);
-
+      // UI 업데이트
       indexTypeRows(state.typeRows);
       fillRoomTables();
+
+      // 데이터 변경 감지
+      if (hadCache && newCount !== previousCount) {
+        console.log(`🔄 [SWR] 데이터 변경 감지: ${previousCount}행 → ${newCount}행`);
+        toast(`📊 플레이어 정보 업데이트됨 (${newCount}명, ⭐ ${keyPlayers.length}명)`, true);
+      } else if (hadCache) {
+        console.log(`✅ [SWR] 데이터 변경 없음 (${newCount}행)`);
+      }
+
+      setStatus('준비됨');
     }
     else {
       toast('Type 탭 로딩 실패: '+(res?.error||'unknown'), false);
-      updateLoading('❌ 플레이어 정보 실패', res?.error || 'unknown');
+      setStatus('에러');
     }
 
     // 모든 로딩 완료
-    setTimeout(() => {
-      hideLoading();
-      setStatus('준비됨');
-    }, 500);
-  }).getCachedTypeRows(state.typeId || null);  // ✅ 5분 캐싱 활성화
+    if (!hadCache || !state.typeRows || state.typeRows.length === 0) {
+      setTimeout(() => {
+        hideLoading();
+      }, 500);
+    }
+  }).getCachedTypeRows(state.typeId || null);  // ✅ 버전 체크 + 30분 캐싱
 }
 
   /* 미리보기(전부 대문자 출력) */

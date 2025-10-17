@@ -415,26 +415,82 @@ function clearUserPreference() {
     return { ok: false, error: String(e) };
   }
 }
-// ===== Cache 레이어: Type Rows 캐싱 (5분 TTL) =====
+// ===== 캐시 강제 갱신 함수 =====
+function clearAllCache() {
+  try {
+    const cache = CacheService.getScriptCache();
+    cache.removeAll(['TYPE_ROWS_', 'COLUMN_B_']); // 모든 캐시 삭제
+
+    // PropertiesService 캐시도 삭제
+    const props = PropertiesService.getScriptProperties();
+    const today = Utilities.formatDate(new Date(), CFG.KST_TZ, 'yyyyMMdd');
+    props.deleteProperty(`COLUMN_B_${CFG.CUE_SHEET_ID}_${today}`);
+
+    Logger.log('✅ 모든 캐시 삭제 완료');
+    return { ok: true, message: '캐시가 갱신되었습니다. 페이지를 새로고침하세요.' };
+  } catch(e) {
+    Logger.log('❌ 캐시 삭제 실패:', e);
+    return { ok: false, error: String(e) };
+  }
+}
+
+// ===== 데이터 버전 확인 (메타데이터 기반) =====
+function getDataVersion(typeIdOverride) {
+  try {
+    const typeId = String(typeIdOverride || CFG.TYPE_SHEET_ID).trim();
+    const ss = SpreadsheetApp.openById(typeId);
+    const sh = ss.getSheetByName(CFG.TYPE_TAB);
+    if (!sh) return { version: 'ERROR', rowCount: 0, lastEdit: 0 };
+
+    const lastRow = sh.getLastRow();
+    const lastEditTime = sh.getRange(1, 1).getLastEditTime();
+    const lastEdit = lastEditTime ? lastEditTime.getTime() : 0;
+
+    const version = `${lastRow}_${lastEdit}`;
+    Logger.log(`📊 [VERSION] Type Rows 버전: ${version} (행: ${lastRow}, 수정: ${new Date(lastEdit).toLocaleString('ko-KR')})`);
+
+    return { version, rowCount: lastRow, lastEdit };
+  } catch(e) {
+    Logger.log(`❌ [VERSION] 버전 확인 실패: ${e.message}`);
+    return { version: 'ERROR', rowCount: 0, lastEdit: 0 };
+  }
+}
+
+// ===== Cache 레이어: Type Rows 캐싱 (버전 체크 + 30분 TTL) =====
 function getCachedTypeRows(typeIdOverride) {
   const typeId = String(typeIdOverride || CFG.TYPE_SHEET_ID).trim();
   const cache = CacheService.getScriptCache();
-  const key = 'TYPE_ROWS_' + typeId;
+  const dataKey = 'TYPE_ROWS_' + typeId;
+  const versionKey = 'TYPE_VERSION_' + typeId;
 
-  // 캐시 확인
-  const cached = cache.get(key);
-  if (cached) {
-    Logger.log('✅ Cache HIT - Type Rows');
+  // Step 1: 캐시된 버전 확인
+  const cachedVersion = cache.get(versionKey);
+  const cached = cache.get(dataKey);
+
+  // Step 2: 현재 버전 확인 (메타데이터만 - 빠름)
+  const currentVersionInfo = getDataVersion(typeIdOverride);
+  const currentVersion = currentVersionInfo.version;
+
+  // Step 3: 버전 비교
+  if (cached && cachedVersion && cachedVersion === currentVersion) {
+    Logger.log(`✅ [CACHE] HIT - Type Rows (버전 일치: ${currentVersion})`);
     return JSON.parse(cached);
   }
 
-  // 캐시 미스 - Sheets에서 로드
-  Logger.log('❌ Cache MISS - Loading from Sheets');
+  if (cached && cachedVersion && cachedVersion !== currentVersion) {
+    Logger.log(`🔄 [CACHE] VERSION_CHANGED - 버전 불일치 (캐시: ${cachedVersion} ≠ 현재: ${currentVersion})`);
+  } else if (!cached) {
+    Logger.log('❌ [CACHE] MISS - 캐시 없음');
+  }
+
+  // Step 4: 캐시 미스 또는 버전 변경 - Sheets에서 로드
   const result = getTypeRows(typeIdOverride);
 
   if (result.ok) {
-    // 30분(1800초) 캐싱 - Priority 4 최적화
-    cache.put(key, JSON.stringify(result), 1800);
+    // 30분(1800초) 캐싱 + 버전 저장
+    cache.put(dataKey, JSON.stringify(result), 1800);
+    cache.put(versionKey, currentVersion, 1800);
+    Logger.log(`✅ [CACHE] 캐시 저장 완료 (버전: ${currentVersion}, TTL: 30분)`);
   }
 
   return result;
@@ -450,8 +506,16 @@ function getTypeRows(typeIdOverride) {
     const ss = SpreadsheetApp.openById(typeId);
     const sh = ss.getSheetByName(CFG.TYPE_TAB);
     if (!sh) throw new Error(`SHEET_NOT_FOUND:${CFG.TYPE_TAB}`);
-    const values = sh.getDataRange().getValues();
-    if (values.length < 2) return { ok: true, headers: values[0] || [], rows: [], typeId };
+
+    // getLastRow() 사용하여 모든 행 읽기 (빈 셀 무시)
+    const lastRow = sh.getLastRow();
+    const lastCol = sh.getLastColumn();
+
+    Logger.log(`📊 Type 탭 크기: ${lastRow}행 x ${lastCol}열`);
+
+    if (lastRow < 2) return { ok: true, headers: [], rows: [], typeId };
+
+    const values = sh.getRange(1, 1, lastRow, lastCol).getValues();
     const headers = values[0].map(v => String(v).trim());
     const idx = (name) => headers.findIndex(h => h.toLowerCase() === name.toLowerCase());
 
@@ -490,12 +554,7 @@ function getTypeRows(typeIdOverride) {
       const keyPlayerValue = String(rawValue || '').trim().toUpperCase();
       const isKeyPlayer = keyPlayerValue === 'TRUE';
 
-      // 디버깅: 첫 5개 행의 KeyPlayer 값 상세 출력
-      if (idx < 5) {
-        Logger.log(`🔍 행 ${idx + 2} [${r[iPlayer]}]: K열 원본="${rawValue}" (타입=${typeof rawValue}), 변환="${keyPlayerValue}", 결과=${isKeyPlayer}`);
-      }
-
-      return {
+      const row = {
         room:      String(r[iRoom] || '').trim(),
         tname:     String(r[iTName] || '').trim(),
         tableId:   String(r[iTableId] || '').trim(),
@@ -508,7 +567,18 @@ function getTypeRows(typeIdOverride) {
         chipCount: String(r[iChipCount] || '').trim(),
         keyPlayer: isKeyPlayer,
       };
-    }).filter(r => r.room && r.tno && r.seat);
+
+      // 디버깅: 모든 행 출력 (필터 전)
+      Logger.log(`📋 행 ${idx + 2}: room="${row.room}", tno="${row.tno}", seat="${row.seat}", player="${row.player}"`);
+
+      return row;
+    }).filter((r, idx) => {
+      const isValid = r.room && r.tno && r.seat;
+      if (!isValid) {
+        Logger.log(`❌ 행 ${idx + 2} 필터링됨: room="${r.room}", tno="${r.tno}", seat="${r.seat}", player="${r.player}"`);
+      }
+      return isValid;
+    });
 
     // 디버깅: KeyPlayer가 true인 행 개수
     const keyPlayerCount = rows.filter(r => r.keyPlayer).length;
