@@ -590,7 +590,7 @@ function getCachedColumnC(cueId, ss, sh) {
   return { ok: true, data: colB, source: 'fresh' };
 }
 
-function getTimeOptions(cueIdOverride) {
+function getTimeOptions(cueIdOverride, clientTime) {
   try {
     const cueId = String(cueIdOverride || CFG.CUE_SHEET_ID).trim();
     const ss = SpreadsheetApp.openById(cueId);
@@ -604,8 +604,8 @@ function getTimeOptions(cueIdOverride) {
     }
     const colB = cacheResult.data;
 
-    const nowKST = new Date();
-    const center = Utilities.formatDate(nowKST, CFG.KST_TZ, CFG.TIME_DISPLAY); // "HH:mm"
+    // PC 로컬 시간 사용 (클라이언트에서 전달받음)
+    const center = clientTime || Utilities.formatDate(new Date(), CFG.KST_TZ, CFG.TIME_DISPLAY);
     const toMin = (s) => {
       const m = String(s || '').match(/^(\d{2}):(\d{2})/);
       return m ? (parseInt(m[1],10)*60 + parseInt(m[2],10)) : null;
