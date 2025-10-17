@@ -135,8 +135,19 @@ function sendBatch() {
 
   const autoNow = document.getElementById('chkAuto').checked;
   const picked = document.getElementById('selTime').value;
-  const timeStr = autoNow ? state.timeCenter.slice(0,5) : picked;
-  const hhmm = hhmmFromTimeStr(timeStr);
+
+  // PC 로컬 시간 사용 (autoNow일 때)
+  let timeStr, hhmm;
+  if (autoNow) {
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    timeStr = `${hours}:${minutes}`;
+    hhmm = `${hours}${minutes}`;
+  } else {
+    timeStr = picked;
+    hhmm = hhmmFromTimeStr(timeStr);
+  }
 
   const key = document.getElementById('selRoomTable').value;
   const tno = key ? key.split('|')[1] : '';
@@ -159,18 +170,19 @@ function sendBatch() {
     cueId: state.cueId || undefined
   };
 
-  setStatus('전송 중…');
+  // 로딩 시작
+  if (!LoadingManager.start('SEND_BATCH', '배치 전송 중...', `${state.batch.length}건 데이터를 전송합니다...`)) {
+    return;
+  }
 
   google.script.run
     .withSuccessHandler(res => {
       if (!res?.ok) {
-        toast('❌ 전송 실패: ' + (res?.error || 'unknown'), false);
-        setStatus('에러');
+        LoadingManager.error('전송 실패: ' + (res?.error || 'unknown'));
         return;
       }
 
-      toast(`✅ ${res.filename} - 행 ${res.row}(${res.time}) 저장 완료 (${state.batch.length}건, SC${String(res.scNumber).padStart(3, '0')})`, true);
-      setStatus('준비됨');
+      LoadingManager.success(`✅ ${res.filename} - 행 ${res.row}(${res.time}) 저장 완료 (${state.batch.length}건, SC${String(res.scNumber).padStart(3, '0')})`);
 
       state.batch = [];
       renderBatchList();
@@ -178,8 +190,7 @@ function sendBatch() {
       updateSendButton();
     })
     .withFailureHandler(err => {
-      toast('❌ 서버 오류: ' + (err?.message || err), false);
-      setStatus('에러');
+      LoadingManager.error('서버 오류: ' + (err?.message || err));
     })
     .updateVirtual(payload);
 }
@@ -213,8 +224,19 @@ function sendSingle() {
   const player = getSelectedPlayer();
   const key = document.getElementById('selRoomTable').value;
   const tno = key ? key.split('|')[1] : '';
-  const timeStr = autoNow ? state.timeCenter.slice(0,5) : picked;
-  const hhmm = hhmmFromTimeStr(timeStr);
+
+  // PC 로컬 시간 사용 (autoNow일 때)
+  let timeStr, hhmm;
+  if (autoNow) {
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    timeStr = `${hours}:${minutes}`;
+    hhmm = `${hours}${minutes}`;
+  } else {
+    timeStr = picked;
+    hhmm = hhmmFromTimeStr(timeStr);
+  }
 
   let modeData = {};
   if (state.mode === CONSTANTS.MODES.PU) {
@@ -241,14 +263,18 @@ function sendSingle() {
     cueId: state.cueId || undefined
   };
 
-  // ===== 동기 전송 (Optimistic UI 비활성화) =====
-  setStatus('전송 중…');
+  // 로딩 시작
+  if (!LoadingManager.start('SEND_SINGLE', '단일 전송 중...', `${payload.playerName} 데이터를 전송합니다...`)) {
+    return;
+  }
+
   google.script.run.withSuccessHandler(res=>{
-    if(!res?.ok){ toast('실패: '+(res?.error||'unknown'), false); setStatus('에러'); return; }
-    toast(`✅ ${res.filename} - 행 ${res.row}(${res.time}) 저장 완료 (SC${String(res.scNumber).padStart(3, '0')})`);
-    setStatus('준비됨');
+    if(!res?.ok){
+      LoadingManager.error('전송 실패: '+(res?.error||'unknown'));
+      return;
+    }
+    LoadingManager.success(`✅ ${res.filename} - 행 ${res.row}(${res.time}) 저장 완료 (SC${String(res.scNumber).padStart(3, '0')})`);
   }).withFailureHandler(err=>{
-    toast('서버 오류: '+(err?.message||err), false);
-    setStatus('에러');
+    LoadingManager.error('서버 오류: '+(err?.message||err));
   }).updateVirtual(payload);
 }

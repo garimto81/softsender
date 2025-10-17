@@ -47,7 +47,10 @@ function saveIds(){
   const cue = document.getElementById('cueId').value.trim();
   const type = document.getElementById('typeId').value.trim();
 
-  setStatus('저장 중…');
+  // 로딩 시작
+  if (!LoadingManager.start('SAVE_IDS', 'Sheet ID 저장 중...', '서버에 영구 저장합니다...')) {
+    return;
+  }
 
   // 서버에 저장 (영구 저장)
   google.script.run
@@ -60,17 +63,16 @@ function saveIds(){
         state.cueId = cue;
         state.typeId = type;
         renderIdsHint();
-        toast('✅ ID 저장 완료 (서버에 영구 저장됨)');
-        setStatus('준비됨');
-        reloadSheets();
+        LoadingManager.success('✅ ID 저장 완료 (서버에 영구 저장됨)');
+
+        // 저장 후 시트 재로드
+        setTimeout(() => reloadSheets(), 500);
       } else {
-        toast('❌ 저장 실패: ' + (res?.error || 'unknown'), false);
-        setStatus('에러');
+        LoadingManager.error('저장 실패: ' + (res?.error || 'unknown'));
       }
     })
     .withFailureHandler(err => {
-      toast('❌ 서버 오류: ' + (err?.message || err), false);
-      setStatus('에러');
+      LoadingManager.error('서버 오류: ' + (err?.message || err));
     })
     .saveUserPreference(cue, type);
 }
@@ -97,7 +99,10 @@ function autoSaveIds(){
 }
 
 function clearIds(){
-  setStatus('초기화 중…');
+  // 로딩 시작
+  if (!LoadingManager.start('CLEAR_IDS', 'Sheet ID 초기화 중...', '기본값으로 되돌립니다...')) {
+    return;
+  }
 
   // 서버에서 삭제
   google.script.run
@@ -112,17 +117,16 @@ function clearIds(){
         document.getElementById('cueId').value = '';
         document.getElementById('typeId').value = '';
         renderIdsHint();
-        toast('✅ ID 초기화 완료 (기본값 사용)');
-        setStatus('준비됨');
-        reloadSheets();
+        LoadingManager.success('✅ ID 초기화 완료 (기본값 사용)');
+
+        // 초기화 후 시트 재로드
+        setTimeout(() => reloadSheets(), 500);
       } else {
-        toast('❌ 초기화 실패: ' + (res?.error || 'unknown'), false);
-        setStatus('에러');
+        LoadingManager.error('초기화 실패: ' + (res?.error || 'unknown'));
       }
     })
     .withFailureHandler(err => {
-      toast('❌ 서버 오류: ' + (err?.message || err), false);
-      setStatus('에러');
+      LoadingManager.error('서버 오류: ' + (err?.message || err));
     })
     .clearUserPreference();
 }

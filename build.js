@@ -26,6 +26,7 @@ function build() {
   const designTokens = readSource('design-tokens.css');
   const css = readSource('styles.css');
   const constants = readSource('constants.js');
+  const loadingManager = readSource('loading-manager.js');
   const utils = readSource('utils.js');
   const preview = readSource('preview.js');
   const syncQueue = readSource('sync-queue.js');
@@ -39,6 +40,7 @@ function build() {
   let merged = template
     .replace('<!-- INJECT:CSS -->', `<style>\n${designTokens}\n\n${css}\n  </style>`)
     .replace('// INJECT:CONSTANTS', constants)
+    .replace('// INJECT:LOADING_MANAGER', loadingManager)
     .replace('// INJECT:UTILS', utils)
     .replace('// INJECT:PREVIEW', preview)
     .replace('// INJECT:SYNC_QUEUE', syncQueue)

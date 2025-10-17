@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Header Layout Mockups - 3 Options</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      background: #0E0F10;
+      color: #F2F3F5;
+      padding: 20px;
+    }
+    .container {
+      max-width: 980px;
+      margin: 0 auto;
+    }
+    .mockup-section {
+      margin-bottom: 40px;
+      background: #141516;
+      border: 2px solid #2A2B2C;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .mockup-title {
+      background: #1B1C1D;
+      padding: 12px 16px;
+      font-size: 16px;
+      font-weight: 600;
+      border-bottom: 1px solid #2A2B2C;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .mockup-stats {
+      font-size: 12px;
+      color: #B9C0CC;
+      font-weight: normal;
+    }
+    .mockup-body {
+      padding: 20px;
+    }
+
+    /* 공통 스타일 */
+    .header-demo {
+      background: #0E0F10;
+      border: 1px solid #2A2B2C;
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin-bottom: 16px;
+    }
+    select, input[type="text"], button {
+      background: #141516;
+      color: #F2F3F5;
+      border: 1px solid #2A2B2C;
+      border-radius: 8px;
+      padding: 0 10px;
+      font-size: 13px;
+      font-family: inherit;
+    }
+    select { cursor: pointer; }
+    button {
+      cursor: pointer;
+      font-weight: 600;
+      transition: opacity 0.15s;
+    }
+    button:hover { opacity: 0.8; }
+    button.active {
+      background: linear-gradient(0deg, #19D27C, #19D27C);
+      color: #0b1d14;
+    }
+    input[type="checkbox"] {
+      transform: scale(1.2);
+      cursor: pointer;
+    }
+    label { cursor: pointer; }
+
+    /* 옵션 A: 컴팩트 툴바 */
+    .option-a {
+      height: 40px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .option-a .version {
+      font-size: 12px;
+      color: #B9C0CC;
+      white-space: nowrap;
+    }
+    .option-a select {
+      width: 110px;
+      height: 32px;
+    }
+    .option-a .time-check {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .option-a .mode-tabs {
+      display: flex;
+      gap: 4px;
+    }
+    .option-a .mode-tabs button {
+      height: 32px;
+      padding: 0 12px;
+      font-size: 13px;
+    }
+    .option-a .status {
+      margin-left: auto;
+      font-size: 12px;
+      color: #9fe7cc;
+      white-space: nowrap;
+    }
+
+    /* 옵션 B: 2단 헤더 */
+    .option-b {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .option-b .row1, .option-b .row2 {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      height: 36px;
+    }
+    .option-b .title {
+      font-size: 14px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .option-b select {
+      width: 110px;
+      height: 28px;
+    }
+    .option-b input[type="text"] {
+      flex: 1;
+      height: 28px;
+      min-width: 0;
+    }
+    .option-b .mode-tabs {
+      display: flex;
+      gap: 4px;
+    }
+    .option-b .mode-tabs button {
+      height: 28px;
+      padding: 0 14px;
+      font-size: 12px;
+    }
+    .option-b .status {
+      margin-left: auto;
+      font-size: 12px;
+      color: #9fe7cc;
+      white-space: nowrap;
+    }
+    .option-b .time-check {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    /* 옵션 C: 접기 가능 */
+    .option-c .collapsed {
+      height: 40px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .option-c .collapsed .version {
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .option-c .collapsed .time-info {
+      font-size: 12px;
+      color: #B9C0CC;
+    }
+    .option-c .collapsed .mode-tabs {
+      display: flex;
+      gap: 4px;
+    }
+    .option-c .collapsed button {
+      height: 32px;
+      padding: 0 12px;
+      font-size: 13px;
+    }
+    .option-c .collapsed .status {
+      margin-left: auto;
+      font-size: 12px;
+      color: #9fe7cc;
+    }
+    .option-c .collapsed .settings-btn {
+      width: 32px;
+      height: 32px;
+      font-size: 16px;
+      padding: 0;
+    }
+    .option-c .expanded {
+      margin-top: 8px;
+      padding: 12px;
+      background: #1B1C1D;
+      border-radius: 8px;
+      border: 1px solid #2A2B2C;
+      display: none;
+    }
+    .option-c.open .expanded {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: 1fr 1fr;
+    }
+    .option-c .expanded label {
+      font-size: 11px;
+      color: #B9C0CC;
+      margin-bottom: 4px;
+      display: block;
+    }
+    .option-c .expanded input, .option-c .expanded select {
+      width: 100%;
+      height: 32px;
+    }
+
+    /* 핸드 리스트 데모 */
+    .hand-list-demo {
+      background: #141516;
+      border: 1px solid #2A2B2C;
+      border-radius: 8px;
+      padding: 12px;
+      margin-top: 12px;
+    }
+    .hand-list-demo .title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #19D27C;
+      margin-bottom: 8px;
+    }
+    .hand-item {
+      background: #0E0F10;
+      padding: 10px 12px;
+      border-radius: 6px;
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .hand-item .info {
+      font-size: 13px;
+    }
+    .hand-item .chips {
+      font-size: 12px;
+      color: #B9C0CC;
+    }
+
+    .pro-con {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 12px;
+      font-size: 13px;
+    }
+    .pro-con div {
+      background: #1B1C1D;
+      padding: 10px;
+      border-radius: 6px;
+    }
+    .pro-con .pro { border-left: 3px solid #19D27C; }
+    .pro-con .con { border-left: 3px solid #FF6464; }
+    .pro-con h4 {
+      font-size: 12px;
+      margin-bottom: 6px;
+      color: #B9C0CC;
+    }
+    .pro-con ul {
+      list-style: none;
+      padding: 0;
+    }
+    .pro-con li {
+      margin-bottom: 4px;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .comparison {
+      margin-top: 16px;
+      background: #1B1C1D;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+    .comparison table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .comparison th, .comparison td {
+      padding: 6px 8px;
+      text-align: left;
+      border-bottom: 1px solid #2A2B2C;
+    }
+    .comparison th {
+      color: #B9C0CC;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .comparison td {
+      font-size: 12px;
+    }
+    .comparison .highlight {
+      color: #19D27C;
+      font-weight: 600;
+    }
+
+    .note {
+      background: #1B1C1D;
+      border-left: 3px solid #19D27C;
+      padding: 10px 12px;
+      margin-top: 16px;
+      font-size: 12px;
+      color: #B9C0CC;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 style="margin-bottom: 8px; font-size: 24px;">Header Layout Mockups</h1>
+    <p style="color: #B9C0CC; margin-bottom: 30px; font-size: 14px;">
+      현재 124px → 40-80px로 압축 (44-84px 절감)
+    </p>
+
+    <!-- 옵션 A: 컴팩트 툴바 -->
+    <div class="mockup-section">
+      <div class="mockup-title">
+        옵션 A: 컴팩트 툴바 (추천)
+        <span class="mockup-stats">높이: 40px | 절감: 84px (68%)</span>
+      </div>
+      <div class="mockup-body">
+        <div class="header-demo option-a">
+          <span class="version">📄 v11.9.0</span>
+
+          <select>
+            <option>CUE: 기본값</option>
+            <option>CUE: 사용자 설정</option>
+            <option value="custom">⚙️ 설정...</option>
+          </select>
+
+          <select>
+            <option>TYPE: 기본값</option>
+            <option>TYPE: 사용자 설정</option>
+            <option value="custom">⚙️ 설정...</option>
+          </select>
+
+          <label class="time-check">
+            <input type="checkbox" checked />
+            ⏰ 현재시각
+          </label>
+
+          <div class="mode-tabs">
+            <button class="active">PU</button>
+            <button>L3</button>
+          </div>
+
+          <span class="status">준비됨</span>
+        </div>
+
+        <!-- 핸드 리스트 데모 -->
+        <div class="hand-list-demo">
+          <div class="title">📋 핸드 리스트 (더 넓은 공간 확보)</div>
+          <div class="hand-item">
+            <div class="info">#1 - John Doe ⭐</div>
+            <div class="chips">1,234,000 (62BB)</div>
+          </div>
+          <div class="hand-item">
+            <div class="info">#2 - Jane Smith</div>
+            <div class="chips">987,000 (49BB)</div>
+          </div>
+          <div class="hand-item">
+            <div class="info">#3 - Bob Wilson</div>
+            <div class="chips">2,100,000 (105BB)</div>
+          </div>
+        </div>
+
+        <div class="pro-con">
+          <div class="pro">
+            <h4>✅ 장점</h4>
+            <ul>
+              <li>• 84px 공간 절약 (68%)</li>
+              <li>• 한눈에 모든 설정 확인</li>
+              <li>• 클릭 횟수 최소화</li>
+              <li>• 핸드 리스트 가시성 극대화</li>
+            </ul>
+          </div>
+          <div class="con">
+            <h4>⚠️ 단점</h4>
+            <ul>
+              <li>• 드롭다운 추가 UI 필요</li>
+              <li>• 좁은 화면에서 압축됨</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 옵션 B: 2단 헤더 -->
+    <div class="mockup-section">
+      <div class="mockup-title">
+        옵션 B: 2단 헤더 (중간)
+        <span class="mockup-stats">높이: 80px | 절감: 44px (35%)</span>
+      </div>
+      <div class="mockup-body">
+        <div class="header-demo option-b">
+          <div class="row1">
+            <span class="title">Soft Content Sender v11.9.0</span>
+
+            <select>
+              <option>CUE: 기본값</option>
+              <option value="custom">설정...</option>
+            </select>
+
+            <select>
+              <option>TYPE: 기본값</option>
+              <option value="custom">설정...</option>
+            </select>
+
+            <span class="status">준비됨</span>
+          </div>
+
+          <div class="row2">
+            <label class="time-check">
+              <input type="checkbox" checked />
+              ⏰ 현재시각
+            </label>
+
+            <select style="width: 100px;">
+              <option>14:42 ← 현재</option>
+              <option>14:43</option>
+              <option>14:44</option>
+            </select>
+
+            <input type="text" placeholder="파일명: 1442_John_Doe_PU" value="1442_John_Doe_PU" />
+
+            <div class="mode-tabs">
+              <button class="active">PU</button>
+              <button>L3</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 핸드 리스트 데모 -->
+        <div class="hand-list-demo">
+          <div class="title">📋 핸드 리스트 (중간 공간 확보)</div>
+          <div class="hand-item">
+            <div class="info">#1 - John Doe ⭐</div>
+            <div class="chips">1,234,000 (62BB)</div>
+          </div>
+          <div class="hand-item">
+            <div class="info">#2 - Jane Smith</div>
+            <div class="chips">987,000 (49BB)</div>
+          </div>
+        </div>
+
+        <div class="pro-con">
+          <div class="pro">
+            <h4>✅ 장점</h4>
+            <ul>
+              <li>• 44px 공간 절약 (35%)</li>
+              <li>• 모든 정보 직접 표시</li>
+              <li>• 익숙한 레이아웃</li>
+            </ul>
+          </div>
+          <div class="con">
+            <h4>⚠️ 단점</h4>
+            <ul>
+              <li>• 중간 절충안</li>
+              <li>• 2줄 사용으로 여전히 공간 차지</li>
+              <li>• 파일명 필드가 줄어듬</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 옵션 C: 접기 가능 -->
+    <div class="mockup-section">
+      <div class="mockup-title">
+        옵션 C: 접기 가능 헤더
+        <span class="mockup-stats">높이: 40px (접힘) / 120px (펼침) | 절감: 84px (68%)</span>
+      </div>
+      <div class="mockup-body">
+        <!-- 접힌 상태 -->
+        <div style="margin-bottom: 20px;">
+          <p style="font-size: 12px; color: #B9C0CC; margin-bottom: 8px;">▼ 접힌 상태 (기본)</p>
+          <div class="header-demo option-c">
+            <div class="collapsed">
+              <span class="version">📄 SCS v11.9.0</span>
+              <span class="time-info">⏰ 현재시각</span>
+
+              <div class="mode-tabs">
+                <button class="active">PU</button>
+                <button>L3</button>
+              </div>
+
+              <span class="status">준비됨</span>
+              <button class="settings-btn" onclick="this.closest('.option-c').classList.toggle('open')">⚙️</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 펼쳐진 상태 -->
+        <div>
+          <p style="font-size: 12px; color: #B9C0CC; margin-bottom: 8px;">▼ 펼쳐진 상태 (⚙️ 클릭 시)</p>
+          <div class="header-demo option-c open">
+            <div class="collapsed">
+              <span class="version">📄 SCS v11.9.0</span>
+              <span class="time-info">⏰ 현재시각</span>
+
+              <div class="mode-tabs">
+                <button class="active">PU</button>
+                <button>L3</button>
+              </div>
+
+              <span class="status">준비됨</span>
+              <button class="settings-btn" onclick="this.closest('.option-c').classList.toggle('open')">⚙️</button>
+            </div>
+
+            <div class="expanded">
+              <div>
+                <label>CUE Sheet ID</label>
+                <input type="text" placeholder="기본값 사용 중" />
+              </div>
+              <div>
+                <label>TYPE Sheet ID</label>
+                <input type="text" placeholder="기본값 사용 중" />
+              </div>
+              <div>
+                <label>시간 선택</label>
+                <select>
+                  <option>14:42 ← 현재</option>
+                  <option>14:43</option>
+                </select>
+              </div>
+              <div>
+                <label>파일명</label>
+                <input type="text" value="1442_John_Doe_PU" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 핸드 리스트 데모 -->
+        <div class="hand-list-demo">
+          <div class="title">📋 핸드 리스트 (최대 공간 확보)</div>
+          <div class="hand-item">
+            <div class="info">#1 - John Doe ⭐</div>
+            <div class="chips">1,234,000 (62BB)</div>
+          </div>
+          <div class="hand-item">
+            <div class="info">#2 - Jane Smith</div>
+            <div class="chips">987,000 (49BB)</div>
+          </div>
+          <div class="hand-item">
+            <div class="info">#3 - Bob Wilson</div>
+            <div class="chips">2,100,000 (105BB)</div>
+          </div>
+        </div>
+
+        <div class="pro-con">
+          <div class="pro">
+            <h4>✅ 장점</h4>
+            <ul>
+              <li>• 평상시 84px 절약 (68%)</li>
+              <li>• 핸드 리스트 최대 가시성</li>
+              <li>• 필요시만 설정 표시</li>
+              <li>• 가장 깔끔한 UI</li>
+            </ul>
+          </div>
+          <div class="con">
+            <h4>⚠️ 단점</h4>
+            <ul>
+              <li>• 설정 변경 시 추가 클릭</li>
+              <li>• 현재 Sheet ID 확인 불편</li>
+              <li>• 접기/펼치기 로직 필요</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 비교 표 -->
+    <div class="mockup-section">
+      <div class="mockup-title">📊 옵션 비교</div>
+      <div class="mockup-body">
+        <div class="comparison">
+          <table>
+            <thead>
+              <tr>
+                <th>항목</th>
+                <th>현재</th>
+                <th>옵션 A</th>
+                <th>옵션 B</th>
+                <th>옵션 C</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>헤더 높이</td>
+                <td>124px</td>
+                <td class="highlight">40px</td>
+                <td>80px</td>
+                <td class="highlight">40px (접힘)</td>
+              </tr>
+              <tr>
+                <td>공간 절감</td>
+                <td>-</td>
+                <td class="highlight">84px (68%)</td>
+                <td>44px (35%)</td>
+                <td class="highlight">84px (68%)</td>
+              </tr>
+              <tr>
+                <td>핸드 표시 개수</td>
+                <td>~5개</td>
+                <td class="highlight">~8개</td>
+                <td>~6개</td>
+                <td class="highlight">~8개</td>
+              </tr>
+              <tr>
+                <td>설정 가시성</td>
+                <td>⭐⭐⭐</td>
+                <td class="highlight">⭐⭐⭐</td>
+                <td>⭐⭐⭐</td>
+                <td>⭐</td>
+              </tr>
+              <tr>
+                <td>클릭 횟수</td>
+                <td>-</td>
+                <td class="highlight">최소</td>
+                <td>중간</td>
+                <td>+1 (펼치기)</td>
+              </tr>
+              <tr>
+                <td>구현 난이도</td>
+                <td>-</td>
+                <td>중간</td>
+                <td class="highlight">쉬움</td>
+                <td>어려움</td>
+              </tr>
+              <tr>
+                <td>추천도</td>
+                <td>-</td>
+                <td class="highlight">⭐⭐⭐</td>
+                <td>⭐⭐</td>
+                <td>⭐⭐</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="note">
+          <strong>💡 추천:</strong> 옵션 A (컴팩트 툴바)<br>
+          • 핸드 리스트 가시성 극대화 (5개 → 8개)<br>
+          • 모든 설정을 한눈에 확인 가능<br>
+          • Sheet ID는 대부분 한 번 설정 후 변경 없음<br>
+          • 드롭다운 UI는 구현이 간단하고 직관적
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

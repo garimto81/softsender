@@ -8,8 +8,8 @@
 
 const VERSION = {
   major: 11,
-  minor: 8,
-  patch: 3,
+  minor: 11,
+  patch: 0,
 
   // Auto-generated fields
   get version() {

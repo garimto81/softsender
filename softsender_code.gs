@@ -48,20 +48,20 @@ function testPerformanceDetailed() {
   Logger.log(`   ⏱️ 소요시간: ${results.getLastRow}ms`);
   Logger.log(`   📊 전체 행 수: ${last}`);
 
-  // ===== 4. C열 전체 읽기 측정 =====
-  Logger.log('\n📌 [4/8] C열 전체 읽기 (getDisplayValues) 테스트');
+  // ===== 4. B열 전체 읽기 측정 =====
+  Logger.log('\n📌 [4/8] B열 전체 읽기 (getDisplayValues) 테스트');
   const t4_start = new Date().getTime();
-  const colC = sh.getRange(2, 3, last - 1, 1).getDisplayValues().flat();
+  const colB = sh.getRange(2, 2, last - 1, 1).getDisplayValues().flat();
   const t4_end = new Date().getTime();
-  results.readColumnC = t4_end - t4_start;
-  Logger.log(`   ⏱️ 소요시간: ${results.readColumnC}ms`);
-  Logger.log(`   📊 읽은 행 수: ${colC.length}`);
+  results.readColumnB = t4_end - t4_start;
+  Logger.log(`   ⏱️ 소요시간: ${results.readColumnB}ms`);
+  Logger.log(`   📊 읽은 행 수: ${colB.length}`);
 
   // ===== 5. findIndex (시간 매칭) 측정 =====
   Logger.log('\n📌 [5/8] findIndex() 시간 매칭 테스트');
   const nowHHmm = Utilities.formatDate(new Date(), CFG.KST_TZ, 'HH:mm');
   const t5_start = new Date().getTime();
-  const rowIdx0 = colC.findIndex(v => {
+  const rowIdx0 = colB.findIndex(v => {
     const s = String(v).trim();
     if (/^\d{2}:\d{2}$/.test(s)) return s === nowHHmm;
     const m = s.match(/^(\d{2}:\d{2}):\d{2}$/);
@@ -328,6 +328,14 @@ function initializeSCCounter() {
   props.setProperty('SC_COUNTER', String(maxNum));
   props.setProperty('SC_LAST_SYNC', String(new Date().getTime()));
 
+  // E3 셀에 카운터 값 출력
+  try {
+    sh.getRange(3, 5, 1, 1).setValue(maxNum);
+    Logger.log(`✅ [SC-INIT] E3 셀에 카운터 값 출력: ${maxNum}`);
+  } catch(e) {
+    Logger.log(`⚠️ [SC-INIT] E3 셀 쓰기 실패: ${e.message}`);
+  }
+
   Logger.log(`✅ [SC-INIT] 초기화 완료 - 카운터: ${maxNum}`);
 
   return {
@@ -514,21 +522,21 @@ function getTypeRows(typeIdOverride) {
     return { ok: false, error: safeError.substring(0, 100) }; // 에러 메시지 길이 제한
   }
 }
-// ===== Phase 4: C열 캐싱 (CacheService + PropertiesService 하이브리드) =====
+// ===== Phase 4: B열 캐싱 (CacheService + PropertiesService 하이브리드) =====
 function getCachedColumnC(cueId, ss, sh) {
   const cache = CacheService.getScriptCache();
   const today = Utilities.formatDate(new Date(), CFG.KST_TZ, 'yyyyMMdd');
-  const cacheKey = `COLUMN_C_${cueId}_${today}`;
+  const cacheKey = `COLUMN_B_${cueId}_${today}`;
 
   // Step 1: CacheService 확인 (6시간 TTL)
   const cachedFromCache = cache.get(cacheKey);
   if (cachedFromCache) {
     try {
       const parsed = JSON.parse(cachedFromCache);
-      Logger.log('✅ [C열 캐시] HIT - CacheService');
+      Logger.log('✅ [B열 캐시] HIT - CacheService');
       return { ok: true, data: parsed, source: 'cache' };
     } catch(e) {
-      Logger.log('⚠️ [C열 캐시] CacheService 파싱 에러');
+      Logger.log('⚠️ [B열 캐시] CacheService 파싱 에러');
     }
   }
 
@@ -538,48 +546,48 @@ function getCachedColumnC(cueId, ss, sh) {
   if (cachedFromProps) {
     try {
       const parsed = JSON.parse(cachedFromProps);
-      Logger.log('✅ [C열 캐시] HIT - PropertiesService (백업)');
+      Logger.log('✅ [B열 캐시] HIT - PropertiesService (백업)');
 
       // CacheService에 복원
       cache.put(cacheKey, cachedFromProps, 21600); // 6시간
 
       return { ok: true, data: parsed, source: 'cache' };
     } catch(e) {
-      Logger.log('⚠️ [C열 캐시] PropertiesService 파싱 에러');
+      Logger.log('⚠️ [B열 캐시] PropertiesService 파싱 에러');
     }
   }
 
   // Step 3: 캐시 미스 - Sheets에서 로드
-  Logger.log('❌ [C열 캐시] MISS - Sheets 로딩');
+  Logger.log('❌ [B열 캐시] MISS - Sheets 로딩');
   const last = sh.getLastRow();
   if (last < 2) {
     return { ok: true, data: [], source: 'fresh' };
   }
 
-  const colC = sh.getRange(2, 3, last - 1, 1).getDisplayValues().flat();
-  const jsonStr = JSON.stringify(colC);
+  const colB = sh.getRange(2, 2, last - 1, 1).getDisplayValues().flat();
+  const jsonStr = JSON.stringify(colB);
 
   // Step 4: CacheService에 저장 (6시간)
   try {
     cache.put(cacheKey, jsonStr, 21600); // 6시간 TTL
-    Logger.log(`✅ [C열 캐시] CacheService 저장 완료 (${jsonStr.length} bytes)`);
+    Logger.log(`✅ [B열 캐시] CacheService 저장 완료 (${jsonStr.length} bytes)`);
   } catch(e) {
-    Logger.log(`⚠️ [C열 캐시] CacheService 저장 실패: ${e.message}`);
+    Logger.log(`⚠️ [B열 캐시] CacheService 저장 실패: ${e.message}`);
   }
 
   // Step 5: PropertiesService에 백업 (일일 백업, 100KB 제한)
   if (jsonStr.length < 100000) {
     try {
       props.setProperty(cacheKey, jsonStr);
-      Logger.log(`✅ [C열 캐시] PropertiesService 백업 완료 (${jsonStr.length} bytes)`);
+      Logger.log(`✅ [B열 캐시] PropertiesService 백업 완료 (${jsonStr.length} bytes)`);
     } catch(e) {
-      Logger.log(`⚠️ [C열 캐시] PropertiesService 백업 실패: ${e.message}`);
+      Logger.log(`⚠️ [B열 캐시] PropertiesService 백업 실패: ${e.message}`);
     }
   } else {
-    Logger.log(`⚠️ [C열 캐시] 크기 초과 (${jsonStr.length} bytes) - PropertiesService 백업 생략`);
+    Logger.log(`⚠️ [B열 캐시] 크기 초과 (${jsonStr.length} bytes) - PropertiesService 백업 생략`);
   }
 
-  return { ok: true, data: colC, source: 'fresh' };
+  return { ok: true, data: colB, source: 'fresh' };
 }
 
 function getTimeOptions(cueIdOverride) {
@@ -589,12 +597,12 @@ function getTimeOptions(cueIdOverride) {
     const sh = ss.getSheetByName(CFG.CUE_TAB_VIRTUAL);
     if (!sh) throw new Error(`SHEET_NOT_FOUND:${CFG.CUE_TAB_VIRTUAL}`);
 
-    // Phase 4: C열 캐싱 적용
+    // Phase 4: B열 캐싱 적용
     const cacheResult = getCachedColumnC(cueId, ss, sh);
     if (!cacheResult.ok) {
       throw new Error('CACHE_ERROR');
     }
-    const colC = cacheResult.data;
+    const colB = cacheResult.data;
 
     const nowKST = new Date();
     const center = Utilities.formatDate(nowKST, CFG.KST_TZ, CFG.TIME_DISPLAY); // "HH:mm"
@@ -603,7 +611,7 @@ function getTimeOptions(cueIdOverride) {
       return m ? (parseInt(m[1],10)*60 + parseInt(m[2],10)) : null;
     };
     const cmin = toMin(center);
-    const list = colC
+    const list = colB
       .map(v => String(v).trim())
       .filter(v => /^\d{2}:\d{2}/.test(v))
       .filter(v => {
@@ -668,15 +676,52 @@ function reserveSCNumber(cueId, targetRow, ss, sh) {
           const maxFromSheet = scNumbers.length > 0 ? Math.max(...scNumbers) : 0;
           const counterValue = parseInt(props.getProperty('SC_COUNTER') || '0', 10);
 
-          // 안전성: 시트와 카운터 중 큰 값 선택
-          const syncedValue = Math.max(maxFromSheet, counterValue);
+          // E3 셀 값 확인 (사용자 수동 수정)
+          let e3Value = 0;
+          let e3Modified = false;
+          try {
+            const e3Raw = syncSh.getRange(3, 5, 1, 1).getValue();
+            e3Value = parseInt(e3Raw, 10) || 0;
 
-          if (syncedValue > counterValue) {
-            Logger.log(`⚠️ [SC-SYNC] 카운터 조정: ${counterValue} → ${syncedValue} (수동 수정 감지)`);
+            // E3이 카운터 값과 다르면 사용자가 수정한 것으로 판단
+            if (e3Value !== counterValue) {
+              e3Modified = true;
+              Logger.log(`🔔 [SC-SYNC] E3 셀이 수정됨 감지: ${counterValue} → ${e3Value}`);
+            }
+
+            Logger.log(`📊 [SC-SYNC] E3 셀 값: ${e3Value} (수정됨: ${e3Modified})`);
+          } catch(e) {
+            Logger.log(`⚠️ [SC-SYNC] E3 셀 읽기 실패: ${e.message}`);
+          }
+
+          // 동기화 로직: E3 수정 감지 시 E3 값 우선 적용
+          let syncedValue;
+
+          if (e3Modified) {
+            // 사용자가 E3을 수정한 경우: E3 값 우선 (0 포함)
+            syncedValue = e3Value;
+            Logger.log(`✅ [SC-SYNC] 사용자 수정 감지 - E3 값 우선 적용: ${syncedValue}`);
+          } else {
+            // E3이 수정되지 않은 경우: F열 최댓값과 카운터 중 큰 값 사용
+            syncedValue = Math.max(maxFromSheet, counterValue);
+            Logger.log(`📊 [SC-SYNC] 자동 동기화 - F열/카운터 중 큰 값: ${syncedValue} (F열: ${maxFromSheet}, 카운터: ${counterValue})`);
+          }
+
+          if (syncedValue !== counterValue) {
+            Logger.log(`⚠️ [SC-SYNC] 카운터 조정: ${counterValue} → ${syncedValue} (F열: ${maxFromSheet}, E3: ${e3Value}, 수정됨: ${e3Modified})`);
           }
 
           props.setProperty('SC_COUNTER', String(syncedValue));
-          Logger.log(`✅ [SC-SYNC] 동기화 완료: ${syncedValue} (시트 최댓값: ${maxFromSheet}, 이전 카운터: ${counterValue})`);
+
+          // E3 셀도 업데이트 (사용자 수정값 그대로 유지)
+          try {
+            syncSh.getRange(3, 5, 1, 1).setValue(syncedValue);
+            Logger.log(`✅ [SC-SYNC] E3 셀 업데이트: ${syncedValue}`);
+          } catch(e) {
+            Logger.log(`⚠️ [SC-SYNC] E3 셀 업데이트 실패: ${e.message}`);
+          }
+
+          Logger.log(`✅ [SC-SYNC] 동기화 완료: ${syncedValue} (F열: ${maxFromSheet}, 이전 카운터: ${counterValue}, E3: ${e3Value}, 수정됨: ${e3Modified})`);
         }
 
         props.setProperty('SC_LAST_SYNC', String(now));
@@ -692,7 +737,7 @@ function reserveSCNumber(cueId, targetRow, ss, sh) {
 
     Logger.log(`📊 [SC-NEXT] 다음 SC 번호: ${nextNum} (Properties 카운터 기반)`);
 
-    // ===== F열에 예약 마커 작성 (Lock 보호 구간) =====
+    // ===== F열에 예약 마커 작성 + E3 업데이트 (Lock 보호 구간) =====
     if (targetRow >= 2) {
       // Phase 2: Sheet 객체 재사용
       const reserveSh = sh || ss.getSheetByName(CFG.CUE_TAB_VIRTUAL);
@@ -701,6 +746,14 @@ function reserveSCNumber(cueId, targetRow, ss, sh) {
         const reserveMarker = `SC${String(nextNum).padStart(3, '0')}_RESERVED`;
         reserveSh.getRange(targetRow, 6, 1, 1).setValue(reserveMarker);
         Logger.log(`✅ [SC-RESERVE] F열 예약: 행 ${targetRow} = "${reserveMarker}"`);
+
+        // E3 셀에도 최신 카운터 값 기록
+        try {
+          reserveSh.getRange(3, 5, 1, 1).setValue(nextNum);
+          Logger.log(`✅ [SC-RESERVE] E3 셀 업데이트: ${nextNum}`);
+        } catch(e) {
+          Logger.log(`⚠️ [SC-RESERVE] E3 셀 업데이트 실패: ${e.message}`);
+        }
       }
     } else {
       Logger.log('⚠️ [SC-RESERVE] targetRow 없음 - 예약 생략');
@@ -781,24 +834,33 @@ function updateVirtual(payload) {
     if (!sh) throw new Error(`SHEET_NOT_FOUND:${CFG.CUE_TAB_VIRTUAL}`);
     addLog('✅', '연결 완료', new Date().getTime() - t0);
 
-    // Step 2: C열 캐시 로드 (시간 매칭용)
-    addLog('📊', '[2/7] 시간 데이터 로드 중... (C열 캐시)', null);
+    // Step 2: B열 캐시 로드 (시간 매칭용)
+    addLog('📊', '[2/7] 시간 데이터 로드 중... (B열 캐시)', null);
     const t1 = new Date().getTime();
     const cacheResult = getCachedColumnC(cueId, ss, sh);
     if (!cacheResult.ok) throw new Error('CACHE_ERROR');
-    const colC = cacheResult.data;
-    if (colC.length === 0) throw new Error('EMPTY_VIRTUAL');
-    addLog('✅', `${colC.length}개 행 로드 완료 (${cacheResult.source === 'cache' ? '캐시' : 'Sheets'})`, new Date().getTime() - t1);
+    const colB = cacheResult.data;
+    if (colB.length === 0) throw new Error('EMPTY_VIRTUAL');
+    addLog('✅', `${colB.length}개 행 로드 완료 (${cacheResult.source === 'cache' ? '캐시' : 'Sheets'})`, new Date().getTime() - t1);
 
-    // Step 3: 시간 매칭
+    // Step 3: 시간 매칭 (PC 로컬 시간 사용)
     addLog('🔍', '[3/7] 시간 매칭 중...', null);
     const t2 = new Date().getTime();
-    const nowKST = new Date();
-    const nowHHmm = Utilities.formatDate(nowKST, CFG.KST_TZ, 'HH:mm');
-    const pickedStr = (payload.autoNow ? nowHHmm : (payload.pickedTime||'')).trim();
+    // payload.hhmm을 HH:mm 형식으로 변환 (예: "1433" → "14:33")
+    let pickedStr;
+    if (payload.autoNow) {
+      const hhmmStr = String(payload.hhmm || '');
+      if (hhmmStr.length === 4) {
+        pickedStr = `${hhmmStr.substring(0,2)}:${hhmmStr.substring(2,4)}`;
+      } else {
+        throw new Error('INVALID_HHMM_FORMAT');
+      }
+    } else {
+      pickedStr = (payload.pickedTime || '').trim();
+    }
     if (!/^\d{2}:\d{2}$/.test(pickedStr)) throw new Error('TIME_FORMAT');
 
-    const rowIdx0 = colC.findIndex(v=>{
+    const rowIdx0 = colB.findIndex(v=>{
       const s = String(v).trim();
       if (/^\d{2}:\d{2}$/.test(s)) return s===pickedStr;
       const m = s.match(/^(\d{2}:\d{2}):\d{2}$/);
@@ -815,7 +877,7 @@ function updateVirtual(payload) {
     addLog('✅', 'J열 로드 완료', new Date().getTime() - t3);
 
     // 파일명용 시간값 추출
-    const matchedTimeStr = String(colC[rowIdx0] || '').trim();
+    const matchedTimeStr = String(colB[rowIdx0] || '').trim();
     const hhmmMatch = matchedTimeStr.match(/^(\d{2}):(\d{2})/);
     const hhmmForFile = hhmmMatch ? `${hhmmMatch[1]}${hhmmMatch[2]}` : '0000';
 
