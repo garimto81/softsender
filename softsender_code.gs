@@ -890,7 +890,19 @@ function updateVirtual(payload) {
     Logger.log(`${step} ${message}${duration ? ` (${duration}ms)` : ''}`);
   };
 
+  // ===== 🔒 Lock 획득: Race Condition 방지 =====
+  const lock = LockService.getScriptLock();
+
   try {
+    // Lock 대기 (최대 30초)
+    const hasLock = lock.tryLock(30000);
+    if (!hasLock) {
+      Logger.log('❌ [UPDATE-LOCK] Lock 획득 실패 (30초 타임아웃)');
+      throw new Error('LOCK_TIMEOUT: 다른 사용자 처리 중입니다. 잠시 후 다시 시도하세요.');
+    }
+
+    Logger.log('🔒 [UPDATE-LOCK] Lock 획득 성공 - Race Condition 방지 활성화');
+
     const startTime = new Date().getTime();
     addLog('⏱️', '[START] 전송 시작', null);
 
@@ -904,17 +916,21 @@ function updateVirtual(payload) {
     if (!sh) throw new Error(`SHEET_NOT_FOUND:${CFG.CUE_TAB_VIRTUAL}`);
     addLog('✅', '연결 완료', new Date().getTime() - t0);
 
-    // Step 2: B열 캐시 로드 (시간 매칭용)
-    addLog('📊', '[2/7] 시간 데이터 로드 중... (B열 캐시)', null);
+    // Step 2: B열 + C열 실시간 읽기 (캐시 미사용 - Staleness 방지)
+    addLog('📊', '[2/7] 시간/테이블 데이터 로드 중... (실시간)', null);
     const t1 = new Date().getTime();
-    const cacheResult = getCachedColumnC(cueId, ss, sh);
-    if (!cacheResult.ok) throw new Error('CACHE_ERROR');
-    const colB = cacheResult.data;
-    if (colB.length === 0) throw new Error('EMPTY_VIRTUAL');
-    addLog('✅', `${colB.length}개 행 로드 완료 (${cacheResult.source === 'cache' ? '캐시' : 'Sheets'})`, new Date().getTime() - t1);
+    const last = sh.getLastRow();
+    if (last < 2) throw new Error('EMPTY_VIRTUAL');
 
-    // Step 3: 시간 매칭 (PC 로컬 시간 사용)
-    addLog('🔍', '[3/7] 시간 매칭 중...', null);
+    // B열 (시간) + C열 (테이블 정보) 동시 로드
+    const rangeBC = sh.getRange(2, 2, last - 1, 2).getDisplayValues(); // B:C 열
+    const colB = rangeBC.map(r => r[0]); // B열
+    const colC = rangeBC.map(r => r[1]); // C열
+    Logger.log(`✅ [B/C열 실시간] ${colB.length}개 행 로드 (캐시 미사용 - 항상 최신 데이터)`);
+    addLog('✅', `${colB.length}개 행 로드 완료 (실시간)`, new Date().getTime() - t1);
+
+    // Step 3: 시간 + 테이블 매칭 (PC 로컬 시간 사용)
+    addLog('🔍', '[3/7] 시간/테이블 매칭 중...', null);
     const t2 = new Date().getTime();
     // payload.hhmm을 HH:mm 형식으로 변환 (예: "1433" → "14:33")
     let pickedStr;
@@ -930,15 +946,44 @@ function updateVirtual(payload) {
     }
     if (!/^\d{2}:\d{2}$/.test(pickedStr)) throw new Error('TIME_FORMAT');
 
-    const rowIdx0 = colB.findIndex(v=>{
-      const s = String(v).trim();
-      if (/^\d{2}:\d{2}$/.test(s)) return s===pickedStr;
-      const m = s.match(/^(\d{2}:\d{2}):\d{2}$/);
-      return m ? (m[1]===pickedStr) : false;
+    // 테이블 번호 추출 (payload에서)
+    const tableNo = payload.tableNo ? String(payload.tableNo).trim() : '';
+
+    // 시간 + 테이블 번호로 매칭
+    const rowIdx0 = colB.findIndex((time, idx) => {
+      const s = String(time).trim();
+      let timeMatch = false;
+      if (/^\d{2}:\d{2}$/.test(s)) {
+        timeMatch = s === pickedStr;
+      } else {
+        const m = s.match(/^(\d{2}:\d{2}):\d{2}$/);
+        timeMatch = m ? (m[1] === pickedStr) : false;
+      }
+
+      // 테이블 번호가 있으면 C열도 확인
+      if (timeMatch && tableNo) {
+        const tableInfo = String(colC[idx] || '').trim();
+        const tableMatch = tableInfo.includes(tableNo);
+        Logger.log(`🔍 [매칭] 행 ${idx + 2}: 시간="${s}" (${timeMatch ? '✅' : '❌'}), 테이블="${tableInfo}" → "${tableNo}" (${tableMatch ? '✅' : '❌'})`);
+        return tableMatch;
+      }
+
+      return timeMatch;
     });
-    if (rowIdx0 < 0) return { ok:false, error:`NO_MATCH_TIME:${pickedStr}`, logs: progressLogs };
+
+    if (rowIdx0 < 0) {
+      const errorMsg = tableNo
+        ? `NO_MATCH_TIME_TABLE:${pickedStr}_Table${tableNo}`
+        : `NO_MATCH_TIME:${pickedStr}`;
+      return { ok:false, error: errorMsg, logs: progressLogs };
+    }
+
     const row = 2 + rowIdx0;
-    addLog('✅', `시간 "${pickedStr}" 매칭 완료 (행 ${row})`, new Date().getTime() - t2);
+    const matchedTable = colC[rowIdx0] || 'N/A';
+    const matchMsg = tableNo
+      ? `시간 "${pickedStr}" + 테이블 "${matchedTable}" 매칭 완료 (행 ${row})`
+      : `시간 "${pickedStr}" 매칭 완료 (행 ${row})`;
+    addLog('✅', matchMsg, new Date().getTime() - t2);
 
     // Step 4: 매칭된 행의 J열만 읽기 (1행 x 1열)
     addLog('📥', '[4/7] J열 데이터 로드 중...', null);
@@ -1022,5 +1067,9 @@ function updateVirtual(payload) {
       error: safeError.substring(0, 100),
       logs: progressLogs
     };
+  } finally {
+    // ===== 🔓 Lock 해제 =====
+    lock.releaseLock();
+    Logger.log('🔓 [UPDATE-UNLOCK] Lock 해제 완료');
   }
 }
