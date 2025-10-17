@@ -317,12 +317,9 @@ function rebuildFileName(){
       modeData = { chipCount, bb };
     }
 
-    // ELIM 모드: 순위 + 상금
+    // ELIM 모드: 빈 객체 (필드 없음)
     if (mode === CONSTANTS.MODES.ELIM) {
-      const hasPrize = document.querySelector('input[name="elimPrize"]:checked')?.value === 'yes';
-      const rank = document.getElementById('elimRank')?.value || '';
-      const prize = hasPrize ? parseIntClean(document.getElementById('elimAmount')?.value) : '';
-      modeData = { rank, prize };
+      modeData = {};
     }
 
     // L3 모드: 프로필

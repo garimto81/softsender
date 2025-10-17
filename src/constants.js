@@ -5,6 +5,7 @@ const CONSTANTS = {
   DEBOUNCE_DELAY: 300,
   MODES: {
     PU: 'PU',
+    ELIM: 'ELIM',
     L3: 'L3'
   },
   DISPLAY: {

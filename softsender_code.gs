@@ -810,6 +810,11 @@ function buildFileName(kind, hhmm, tableNo, playerOrLabel, modeData, scNumber) {
     return `${timePrefix}_${scPrefix}_${name}_PU_${chipCount}`;
   }
 
+  // ELIM 모드: {HHMM}_SC###_이름_ELIM
+  if (kind === 'ELIM') {
+    return `${timePrefix}_${scPrefix}_${name}_ELIM`;
+  }
+
   // L3 모드: {HHMM}_SC###_이름_L3_Profile
   if (kind === 'L3') {
     const profileType = modeData?.profileType || 'Profile';
@@ -975,6 +980,8 @@ function updateVirtual(payload) {
     let kVal;
     if (payload.kind === 'PU') {
       kVal = "소프트 콘텐츠\n'플레이어 업데이트'";
+    } else if (payload.kind === 'ELIM') {
+      kVal = "소프트 콘텐츠\n'플레이어 탈락'";
     } else if (payload.kind === 'L3') {
       kVal = "소프트 콘텐츠\n'플레이어 소개'";
     } else {

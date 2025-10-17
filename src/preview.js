@@ -22,6 +22,14 @@ function rebuildPreview(){
       const bb = (els.stackBB.value||'').toUpperCase();
       body = `${name} / ${country}\nCURRENT STACK - ${amt} (${bb}BB)`;
     }
+  }else if(mode===CONSTANTS.MODES.ELIM){
+    const player = getSelectedPlayer();
+    if (!player) { body = ''; }
+    else {
+      const name = (player.player || '').toUpperCase();
+      const country = (player.nat || '').toUpperCase();
+      body = `${name} / ${country}\nELIMINATED`;
+    }
   }else if(mode===CONSTANTS.MODES.L3){
     const player = getSelectedPlayer();
     if (!player) { body = ''; }
@@ -53,6 +61,13 @@ function generateCurrentPreview() {
       const amt = (els.stackAmt.value || '').toUpperCase();
       const bb = (els.stackBB.value || '').toUpperCase();
       body = `${name} / ${country}\nCURRENT STACK - ${amt} (${bb}BB)`;
+    }
+  } else if (mode === CONSTANTS.MODES.ELIM) {
+    const player = getSelectedPlayer();
+    if (player) {
+      const name = (player.player || '').toUpperCase();
+      const country = (player.nat || '').toUpperCase();
+      body = `${name} / ${country}\nELIMINATED`;
     }
   } else if (mode === CONSTANTS.MODES.L3) {
     const player = getSelectedPlayer();

@@ -63,6 +63,7 @@ function init(){
   document.getElementById('typeId').addEventListener('input', debouncedAutoSave);
 
   document.getElementById('tabPU').onclick   = ()=>setMode(CONSTANTS.MODES.PU);
+  document.getElementById('tabELIM').onclick = ()=>setMode(CONSTANTS.MODES.ELIM);
   document.getElementById('tabL3').onclick   = ()=>setMode(CONSTANTS.MODES.L3);
   document.getElementById('btnSend').onclick = send;
 

@@ -243,6 +243,8 @@ function sendSingle() {
     const chipCount = parseIntClean(document.getElementById('stackAmt').value);
     const bb = document.getElementById('stackBB').value;
     modeData = { chipCount, bb };
+  } else if (state.mode === CONSTANTS.MODES.ELIM) {
+    modeData = {};
   } else if (state.mode === CONSTANTS.MODES.L3) {
     modeData = { profileType: 'Profile' };
   }

@@ -1,6 +1,6 @@
 <!--
-  Soft Content Sender v11.14.1
-  Build Time: 2025-10-17T18:15:55.464Z
+  Soft Content Sender v11.15.0
+  Build Time: 2025-10-17T19:48:52.266Z
   Build Mode: NORMAL
 
   ⚠️  AUTO-GENERATED FILE - DO NOT EDIT DIRECTLY
@@ -367,7 +367,7 @@ details[open] > summary {
   <header>
     <div>
       <h1>Soft Content Sender</h1>
-      <div class="muted" style="font-size:0.75em; margin-top:-4px;">v11.14.1 (2025-01-17)</div>
+      <div class="muted" style="font-size:0.75em; margin-top:-4px;">v11.15.0 (2025-01-17)</div>
     </div>
     <div id="status">로딩중…</div>
   </header>
@@ -412,6 +412,7 @@ details[open] > summary {
         <label>모드</label>
         <div class="tabs">
           <button id="tabPU" class="active">플레이어 업데이트(PU)</button>
+          <button id="tabELIM">플레이어 탈락(ELIM)</button>
           <button id="tabL3">플레이어 소개(L3)</button>
         </div>
       </div>
@@ -456,6 +457,11 @@ details[open] > summary {
     </div>
   </section>
 
+
+  <!-- ELIM -->
+  <section id="panelELIM" class="field" style="display:none;">
+    <p class="muted">"이름 / 국기<br>ELIMINATED" 형식으로 J셀에 추가됩니다.</p>
+  </section>
 
   <!-- L3 -->
   <section id="panelL3" class="field" style="display:none;">
@@ -516,6 +522,7 @@ const CONSTANTS = {
   DEBOUNCE_DELAY: 300,
   MODES: {
     PU: 'PU',
+    ELIM: 'ELIM',
     L3: 'L3'
   },
   DISPLAY: {
@@ -1111,12 +1118,9 @@ function rebuildFileName(){
       modeData = { chipCount, bb };
     }
 
-    // ELIM 모드: 순위 + 상금
+    // ELIM 모드: 빈 객체 (필드 없음)
     if (mode === CONSTANTS.MODES.ELIM) {
-      const hasPrize = document.querySelector('input[name="elimPrize"]:checked')?.value === 'yes';
-      const rank = document.getElementById('elimRank')?.value || '';
-      const prize = hasPrize ? parseIntClean(document.getElementById('elimAmount')?.value) : '';
-      modeData = { rank, prize };
+      modeData = {};
     }
 
     // L3 모드: 프로필
@@ -1283,6 +1287,14 @@ function rebuildPreview(){
       const bb = (els.stackBB.value||'').toUpperCase();
       body = `${name} / ${country}\nCURRENT STACK - ${amt} (${bb}BB)`;
     }
+  }else if(mode===CONSTANTS.MODES.ELIM){
+    const player = getSelectedPlayer();
+    if (!player) { body = ''; }
+    else {
+      const name = (player.player || '').toUpperCase();
+      const country = (player.nat || '').toUpperCase();
+      body = `${name} / ${country}\nELIMINATED`;
+    }
   }else if(mode===CONSTANTS.MODES.L3){
     const player = getSelectedPlayer();
     if (!player) { body = ''; }
@@ -1314,6 +1326,13 @@ function generateCurrentPreview() {
       const amt = (els.stackAmt.value || '').toUpperCase();
       const bb = (els.stackBB.value || '').toUpperCase();
       body = `${name} / ${country}\nCURRENT STACK - ${amt} (${bb}BB)`;
+    }
+  } else if (mode === CONSTANTS.MODES.ELIM) {
+    const player = getSelectedPlayer();
+    if (player) {
+      const name = (player.player || '').toUpperCase();
+      const country = (player.nat || '').toUpperCase();
+      body = `${name} / ${country}\nELIMINATED`;
     }
   } else if (mode === CONSTANTS.MODES.L3) {
     const player = getSelectedPlayer();
@@ -1950,6 +1969,8 @@ function sendSingle() {
     const chipCount = parseIntClean(document.getElementById('stackAmt').value);
     const bb = document.getElementById('stackBB').value;
     modeData = { chipCount, bb };
+  } else if (state.mode === CONSTANTS.MODES.ELIM) {
+    modeData = {};
   } else if (state.mode === CONSTANTS.MODES.L3) {
     modeData = { profileType: 'Profile' };
   }
@@ -1990,15 +2011,18 @@ function sendSingle() {
 function setMode(m){
   state.mode = m;
   document.getElementById('tabPU').classList.toggle('active', m===CONSTANTS.MODES.PU);
+  document.getElementById('tabELIM').classList.toggle('active', m===CONSTANTS.MODES.ELIM);
   document.getElementById('tabL3').classList.toggle('active', m===CONSTANTS.MODES.L3);
 
   document.getElementById('panelPU').style.display   = (m===CONSTANTS.MODES.PU)?CONSTANTS.DISPLAY.BLOCK:CONSTANTS.DISPLAY.NONE;
+  document.getElementById('panelELIM').style.display = (m===CONSTANTS.MODES.ELIM)?CONSTANTS.DISPLAY.BLOCK:CONSTANTS.DISPLAY.NONE;
   document.getElementById('panelL3').style.display   = (m===CONSTANTS.MODES.L3)?CONSTANTS.DISPLAY.BLOCK:CONSTANTS.DISPLAY.NONE;
 
   // 배치 작업 중 모드 변경 시 피드백
   if (state.batch.length > 0) {
     const modeNames = {
       PU: '플레이어 업데이트',
+      ELIM: '플레이어 탈락',
       L3: '플레이어 소개'
     };
     toast(`⚠️ 모드 변경: ${modeNames[m]}`, true);
@@ -2074,6 +2098,7 @@ function init(){
   document.getElementById('typeId').addEventListener('input', debouncedAutoSave);
 
   document.getElementById('tabPU').onclick   = ()=>setMode(CONSTANTS.MODES.PU);
+  document.getElementById('tabELIM').onclick = ()=>setMode(CONSTANTS.MODES.ELIM);
   document.getElementById('tabL3').onclick   = ()=>setMode(CONSTANTS.MODES.L3);
   document.getElementById('btnSend').onclick = send;
 
