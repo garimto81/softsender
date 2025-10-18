@@ -878,6 +878,13 @@ function updateVirtual(payload) {
     const colB = rangeBC.map(r => r[0]); // B열
     const colC = rangeBC.map(r => r[1]); // C열
     Logger.log(`✅ [B/C열 실시간] ${colB.length}개 행 로드 (캐시 미사용 - 항상 최신 데이터)`);
+
+    // C열 샘플 데이터 로그 (디버깅용 - 처음 5개 행)
+    Logger.log('📋 [C열 샘플] 처음 5개 행:');
+    colC.slice(0, 5).forEach((val, i) => {
+      Logger.log(`   행 ${i + 2}: "${val}"`);
+    });
+
     addLog('✅', `${colB.length}개 행 로드 완료 (실시간)`, new Date().getTime() - t1);
 
     // Step 3: 시간 + 테이블 매칭 (PC 로컬 시간 사용)
@@ -914,8 +921,12 @@ function updateVirtual(payload) {
       // 테이블 번호가 있으면 C열도 확인
       if (timeMatch && tableNo) {
         const tableInfo = String(colC[idx] || '').trim();
-        const tableMatch = tableInfo.includes(tableNo);
-        Logger.log(`🔍 [매칭] 행 ${idx + 2}: 시간="${s}" (${timeMatch ? '✅' : '❌'}), 테이블="${tableInfo}" → "${tableNo}" (${tableMatch ? '✅' : '❌'})`);
+
+        // 다양한 형식 지원: "Table 4", "Table4", "#4", "T4" 등
+        const tablePattern = new RegExp(`(?:Table\\s*${tableNo}|#${tableNo}|T${tableNo})`, 'i');
+        const tableMatch = tablePattern.test(tableInfo) || tableInfo.includes(tableNo);
+
+        Logger.log(`🔍 [매칭] 행 ${idx + 2}: 시간="${s}" (${timeMatch ? '✅' : '❌'}), 테이블="${tableInfo}" → "Table ${tableNo}" (${tableMatch ? '✅' : '❌'})`);
         return tableMatch;
       }
 
