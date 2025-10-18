@@ -3,7 +3,7 @@ const CFG = {
   CUE_TAB_VIRTUAL: 'virtual',
   TYPE_SHEET_ID: PropertiesService.getScriptProperties().getProperty('TYPE_SHEET_ID') || '19e7eDjoZRFZooghZJF3XmOZzZcgmqsp9mFAfjvJWhj4',
   TYPE_TAB: 'Type',
-  DEFAULT_STATUS_INCOMPLETE: '미완료', // 상수명 명확화 (FIX_E → DEFAULT_STATUS_INCOMPLETE)
+  DEFAULT_STATUS_INCOMPLETE: '수정 중', // E열 허용값: 수정 중, 전송중, 복사완료, 미사용
   DEFAULT_CONTENT_TYPE: 'SOFT',       // 상수명 명확화 (FIX_G → DEFAULT_CONTENT_TYPE)
   KST_TZ: 'Asia/Seoul',
   TIME_DISPLAY: 'HH:mm',
