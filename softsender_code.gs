@@ -918,19 +918,27 @@ function updateVirtual(payload) {
         timeMatch = m ? (m[1] === pickedStr) : false;
       }
 
+      // 시간이 매칭되지 않으면 건너뜀
+      if (!timeMatch) return false;
+
+      // 테이블 번호가 없으면 시간 매칭만으로 충분
+      if (!tableNo) return true;
+
       // 테이블 번호가 있으면 C열도 확인
-      if (timeMatch && tableNo) {
-        const tableInfo = String(colC[idx] || '').trim();
+      const tableInfo = String(colC[idx] || '').trim();
 
-        // 다양한 형식 지원: "Table 4", "Table4", "#4", "T4" 등
-        const tablePattern = new RegExp(`(?:Table\\s*${tableNo}|#${tableNo}|T${tableNo})`, 'i');
-        const tableMatch = tablePattern.test(tableInfo) || tableInfo.includes(tableNo);
-
-        Logger.log(`🔍 [매칭] 행 ${idx + 2}: 시간="${s}" (${timeMatch ? '✅' : '❌'}), 테이블="${tableInfo}" → "Table ${tableNo}" (${tableMatch ? '✅' : '❌'})`);
-        return tableMatch;
+      // C열이 비어있으면 시간 매칭만으로 충분 (경고 로그)
+      if (!tableInfo) {
+        Logger.log(`⚠️ [매칭] 행 ${idx + 2}: C열이 비어있음 - 시간만으로 매칭`);
+        return true;
       }
 
-      return timeMatch;
+      // 다양한 형식 지원: "Table 4", "Table4", "#4", "T4" 등
+      const tablePattern = new RegExp(`(?:Table\\s*${tableNo}|#${tableNo}|T${tableNo})`, 'i');
+      const tableMatch = tablePattern.test(tableInfo) || tableInfo.includes(tableNo);
+
+      Logger.log(`🔍 [매칭] 행 ${idx + 2}: 시간="${s}" (✅), 테이블="${tableInfo}" → "Table ${tableNo}" (${tableMatch ? '✅' : '❌'})`);
+      return tableMatch;
     });
 
     if (rowIdx0 < 0) {
