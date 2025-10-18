@@ -867,28 +867,20 @@ function updateVirtual(payload) {
     if (!sh) throw new Error(`SHEET_NOT_FOUND:${CFG.CUE_TAB_VIRTUAL}`);
     addLog('✅', '연결 완료', new Date().getTime() - t0);
 
-    // Step 2: B열 + C열 실시간 읽기 (캐시 미사용 - Staleness 방지)
-    addLog('📊', '[2/7] 시간/테이블 데이터 로드 중... (실시간)', null);
+    // Step 2: B열 실시간 읽기 (캐시 미사용 - Staleness 방지)
+    addLog('📊', '[2/7] 시간 데이터 로드 중... (실시간)', null);
     const t1 = new Date().getTime();
     const last = sh.getLastRow();
     if (last < 2) throw new Error('EMPTY_VIRTUAL');
 
-    // B열 (시간) + C열 (테이블 정보) 동시 로드
-    const rangeBC = sh.getRange(2, 2, last - 1, 2).getDisplayValues(); // B:C 열
-    const colB = rangeBC.map(r => r[0]); // B열
-    const colC = rangeBC.map(r => r[1]); // C열
-    Logger.log(`✅ [B/C열 실시간] ${colB.length}개 행 로드 (캐시 미사용 - 항상 최신 데이터)`);
-
-    // C열 샘플 데이터 로그 (디버깅용 - 처음 5개 행)
-    Logger.log('📋 [C열 샘플] 처음 5개 행:');
-    colC.slice(0, 5).forEach((val, i) => {
-      Logger.log(`   행 ${i + 2}: "${val}"`);
-    });
+    // B열 (로컬 시간) 로드 - C열은 Seoul 시간(참조용)이므로 매칭에 사용 안 함
+    const colB = sh.getRange(2, 2, last - 1, 1).getDisplayValues().flat(); // B열만
+    Logger.log(`✅ [B열 실시간] ${colB.length}개 행 로드 (캐시 미사용 - 항상 최신 데이터)`);
 
     addLog('✅', `${colB.length}개 행 로드 완료 (실시간)`, new Date().getTime() - t1);
 
-    // Step 3: 시간 + 테이블 매칭 (PC 로컬 시간 사용)
-    addLog('🔍', '[3/7] 시간/테이블 매칭 중...', null);
+    // Step 3: 시간 매칭 (PC 로컬 시간 기준, B열 사용)
+    addLog('🔍', '[3/7] 시간 매칭 중...', null);
     const t2 = new Date().getTime();
     // payload.hhmm을 HH:mm 형식으로 변환 (예: "1433" → "14:33")
     let pickedStr;
@@ -904,56 +896,24 @@ function updateVirtual(payload) {
     }
     if (!/^\d{2}:\d{2}$/.test(pickedStr)) throw new Error('TIME_FORMAT');
 
-    // 테이블 번호 추출 (payload에서)
-    const tableNo = payload.tableNo ? String(payload.tableNo).trim() : '';
-
-    // 시간 + 테이블 번호로 매칭
-    const rowIdx0 = colB.findIndex((time, idx) => {
+    // B열에서 시간만으로 매칭 (Virtual 시트에는 테이블 정보 없음)
+    const rowIdx0 = colB.findIndex(time => {
       const s = String(time).trim();
-      let timeMatch = false;
+      // HH:mm 형식
       if (/^\d{2}:\d{2}$/.test(s)) {
-        timeMatch = s === pickedStr;
-      } else {
-        const m = s.match(/^(\d{2}:\d{2}):\d{2}$/);
-        timeMatch = m ? (m[1] === pickedStr) : false;
+        return s === pickedStr;
       }
-
-      // 시간이 매칭되지 않으면 건너뜀
-      if (!timeMatch) return false;
-
-      // 테이블 번호가 없으면 시간 매칭만으로 충분
-      if (!tableNo) return true;
-
-      // 테이블 번호가 있으면 C열도 확인
-      const tableInfo = String(colC[idx] || '').trim();
-
-      // C열이 비어있으면 시간 매칭만으로 충분 (경고 로그)
-      if (!tableInfo) {
-        Logger.log(`⚠️ [매칭] 행 ${idx + 2}: C열이 비어있음 - 시간만으로 매칭`);
-        return true;
-      }
-
-      // 다양한 형식 지원: "Table 4", "Table4", "#4", "T4" 등
-      const tablePattern = new RegExp(`(?:Table\\s*${tableNo}|#${tableNo}|T${tableNo})`, 'i');
-      const tableMatch = tablePattern.test(tableInfo) || tableInfo.includes(tableNo);
-
-      Logger.log(`🔍 [매칭] 행 ${idx + 2}: 시간="${s}" (✅), 테이블="${tableInfo}" → "Table ${tableNo}" (${tableMatch ? '✅' : '❌'})`);
-      return tableMatch;
+      // HH:mm:ss 형식 → HH:mm만 비교
+      const m = s.match(/^(\d{2}:\d{2}):\d{2}$/);
+      return m ? (m[1] === pickedStr) : false;
     });
 
     if (rowIdx0 < 0) {
-      const errorMsg = tableNo
-        ? `NO_MATCH_TIME_TABLE:${pickedStr}_Table${tableNo}`
-        : `NO_MATCH_TIME:${pickedStr}`;
-      return { ok:false, error: errorMsg, logs: progressLogs };
+      return { ok:false, error: `NO_MATCH_TIME:${pickedStr}`, logs: progressLogs };
     }
 
     const row = 2 + rowIdx0;
-    const matchedTable = colC[rowIdx0] || 'N/A';
-    const matchMsg = tableNo
-      ? `시간 "${pickedStr}" + 테이블 "${matchedTable}" 매칭 완료 (행 ${row})`
-      : `시간 "${pickedStr}" 매칭 완료 (행 ${row})`;
-    addLog('✅', matchMsg, new Date().getTime() - t2);
+    addLog('✅', `시간 "${pickedStr}" 매칭 완료 (행 ${row})`, new Date().getTime() - t2);
 
     // Step 4: 매칭된 행의 J열만 읽기 (1행 x 1열)
     addLog('📥', '[4/7] J열 데이터 로드 중...', null);
